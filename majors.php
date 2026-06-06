@@ -61,7 +61,7 @@ $majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH
                     <tr >
                         <th >ID</th>
                         <th>Tên</th>
-                        <th></th>
+                        <th>Thao tác</th>
                     </tr>
                     </thead>
                         <tbody id="majorTable">
@@ -70,11 +70,16 @@ $majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH
                                     <td><?= h($m['id']) ?></td>
                                     <td><?= h($m['name']) ?></td>
                                     <td>
-                                        <form method="post" style="margin: 0;">
-                                            <button class="button danger button_del" name="delete" value="<?= h($m['id']) ?>">
-                                                Xóa
-                                            </button>
-                                        </form>
+                                        <div class="d-flex gap-2 justify-content-center">
+                                            <a href="export_major_word.php?id=<?= h($m['id']) ?>" class="btn btn-success btn-sm">
+                                                Xuất Word
+                                            </a>
+                                            <form method="post" style="margin: 0;">
+                                                <button class="button danger button_del" name="delete" value="<?= h($m['id']) ?>">
+                                                    Xóa
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

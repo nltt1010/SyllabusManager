@@ -58,7 +58,7 @@ $module['credits_practice']     = $module['credits_practice']     ?? 0;
 // Lấy danh sách Học phần tiên quyết từ bảng liên kết
 $stmt = $pdo->prepare("SELECT GROUP_CONCAT(c.code SEPARATOR ', ') FROM module_relationships mr JOIN courses c ON mr.related_course_id = c.id WHERE mr.module_id = ? AND mr.relation_type = 'Tiên quyết'");
 $stmt->execute([$id]);
-$module['previous_modules_text'] = $stmt->fetchColumn() ?: ($module['prerequisite_modules'] ?? '');
+$module['prerequisite_modules_text'] = $stmt->fetchColumn() ?: ($module['prerequisite_modules'] ?? '');
 
 // debug
 // $stmt = $pdo->prepare("
@@ -881,6 +881,12 @@ if (!empty($selfRes)) {
 // =====================================================================
 $safeCode     = preg_replace('/[^A-Za-z0-9_\-]/', '_', s($module['code']));
 $filename     = 'DeCuong_' . $safeCode . '.docx';
+
+if (!class_exists('ZipArchive')) {
+    http_response_code(500);
+    header('Content-Type: text/plain; charset=UTF-8');
+    exit("Khong the xuat file Word vi PHP extension 'zip' chua duoc bat. Hay bo comment 'extension=zip' trong php.ini va khoi dong lai web server.");
+}
 
 header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
