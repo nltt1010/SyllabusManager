@@ -216,6 +216,365 @@ function getTocDepthForType(string $type): int
     };
 }
 
+function fetchMajorKnowledgeBlocks(PDO $pdo, int $majorId): array
+{
+    $stmt = $pdo->prepare(
+        'SELECT id, name, parent_id
+         FROM knowledge_blocks
+         WHERE major_id = ?'
+    );
+    $stmt->execute([$majorId]);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function compareMajorBlockRows(array $left, array $right): int
+{
+    $leftName = strtolower(transliterateVietnameseToAscii(s($left['name'])));
+    $rightName = strtolower(transliterateVietnameseToAscii(s($right['name'])));
+    if ($leftName !== $rightName) {
+        return strcmp($leftName, $rightName);
+    }
+
+    return ((int) $left['id']) <=> ((int) $right['id']);
+}
+
+function normalizeModuleTypeKey(string $type): string
+{
+    $normalized = strtolower(transliterateVietnameseToAscii(s($type)));
+
+    return str_contains($normalized, 'bat') && str_contains($normalized, 'buoc')
+        ? 'required'
+        : 'elective';
+}
+
+function getModuleTypeTocLabel(string $typeKey): string
+{
+    return $typeKey === 'required'
+        ? html_entity_decode('* H&#7885;c ph&#7847;n b&#7855;t bu&#7897;c', ENT_QUOTES, 'UTF-8')
+        : html_entity_decode('* H&#7885;c ph&#7847;n t&#7921; ch&#7885;n', ENT_QUOTES, 'UTF-8');
+}
+
+function getModuleTocTitle(array $row): string
+{
+    $code = s($row['course_code'] ?? '');
+    $name = s($row['course_name'] ?? '');
+
+    if ($name !== '') {
+        return $name;
+    }
+
+    return $code;
+}
+
+function capTocDepth(int $depth): int
+{
+    return max(1, min(6, $depth));
+}
+
+function formatTocNumber(array $segments): string
+{
+    if (empty($segments)) {
+        return '';
+    }
+
+    if (count($segments) === 1) {
+        return (string) $segments[0] . '.';
+    }
+
+    return implode('.', $segments);
+}
+
+function buildKnowledgeBlockMaps(array $blocks): array
+{
+    $blocksById = [];
+    $childrenByParent = [0 => []];
+
+    foreach ($blocks as $block) {
+        $blockId = (int) $block['id'];
+        $parentId = $block['parent_id'] !== null ? (int) $block['parent_id'] : 0;
+
+        $blocksById[$blockId] = $block;
+        $childrenByParent[$parentId] ??= [];
+        $childrenByParent[$parentId][] = $blockId;
+        $childrenByParent[$blockId] ??= [];
+    }
+
+    foreach ($childrenByParent as &$childIds) {
+        usort(
+            $childIds,
+            static function (int $leftId, int $rightId) use ($blocksById): int {
+                return compareMajorBlockRows($blocksById[$leftId], $blocksById[$rightId]);
+            }
+        );
+    }
+    unset($childIds);
+
+    return [$blocksById, $childrenByParent];
+}
+
+function groupMajorRowsByBlockAndType(array $rows): array
+{
+    $grouped = [];
+
+    foreach ($rows as $row) {
+        $blockId = $row['block_id'] !== null ? (int) $row['block_id'] : 0;
+        $typeKey = normalizeModuleTypeKey((string) ($row['module_type'] ?? ''));
+        $grouped[$blockId][$typeKey][] = $row;
+    }
+
+    return $grouped;
+}
+
+function appendModuleTypeEntries(array &$plan, array $rows, int $typeDepth, int $moduleDepth, string $typeKey): void
+{
+    if (empty($rows)) {
+        return;
+    }
+
+    $plan[] = [
+        'kind' => 'title',
+        'text' => getModuleTypeTocLabel($typeKey),
+        'depth' => capTocDepth($typeDepth),
+        'tocKind' => 'module_type',
+    ];
+
+    foreach ($rows as $row) {
+        $plan[] = [
+            'kind' => 'title',
+            'text' => getModuleTocTitle($row),
+            'depth' => capTocDepth($moduleDepth),
+            'tocKind' => 'module',
+        ];
+        $plan[] = [
+            'kind' => 'module',
+            'row' => $row,
+        ];
+    }
+}
+
+function appendKnowledgeBlockEntries(
+    array &$plan,
+    int $blockId,
+    int $blockDepth,
+    array $blockNumberParts,
+    array $blocksById,
+    array $childrenByParent,
+    array $rowsByBlockAndType
+): bool {
+    $localPlan = [];
+    $hasContent = false;
+    $typeDepth = capTocDepth(max(3, $blockDepth + 1));
+    $moduleDepth = capTocDepth(max(4, $blockDepth + 2));
+
+    $requiredRows = $rowsByBlockAndType[$blockId]['required'] ?? [];
+    $electiveRows = $rowsByBlockAndType[$blockId]['elective'] ?? [];
+
+    if (!empty($requiredRows)) {
+        appendModuleTypeEntries($localPlan, $requiredRows, $typeDepth, $moduleDepth, 'required');
+        $hasContent = true;
+    }
+
+    if (!empty($electiveRows)) {
+        appendModuleTypeEntries($localPlan, $electiveRows, $typeDepth, $moduleDepth, 'elective');
+        $hasContent = true;
+    }
+
+    $childOrdinal = 0;
+    foreach ($childrenByParent[$blockId] ?? [] as $childBlockId) {
+        if (appendKnowledgeBlockEntries(
+            $localPlan,
+            $childBlockId,
+            $blockDepth + 1,
+            array_merge($blockNumberParts, [$childOrdinal + 1]),
+            $blocksById,
+            $childrenByParent,
+            $rowsByBlockAndType
+        )) {
+            $hasContent = true;
+            $childOrdinal++;
+        }
+    }
+
+    if (!$hasContent) {
+        return false;
+    }
+
+    $plan[] = [
+        'kind' => 'title',
+        'text' => formatTocNumber($blockNumberParts) . ' ' . s($blocksById[$blockId]['name']),
+        'depth' => capTocDepth($blockDepth),
+        'tocKind' => 'block',
+    ];
+
+    foreach ($localPlan as $entry) {
+        $plan[] = $entry;
+    }
+
+    return true;
+}
+
+function buildMajorRenderPlan(array $blocks, array $rows): array
+{
+    [$blocksById, $childrenByParent] = buildKnowledgeBlockMaps($blocks);
+    $rawRowsByBlockAndType = groupMajorRowsByBlockAndType($rows);
+    $rowsByBlockAndType = [];
+
+    foreach ($rawRowsByBlockAndType as $blockId => $typedRows) {
+        $targetBlockId = ($blockId !== 0 && !isset($blocksById[$blockId])) ? 0 : $blockId;
+
+        foreach ($typedRows as $typeKey => $typeRows) {
+            $rowsByBlockAndType[$targetBlockId][$typeKey] ??= [];
+            foreach ($typeRows as $row) {
+                $rowsByBlockAndType[$targetBlockId][$typeKey][] = $row;
+            }
+        }
+    }
+
+    $plan = [];
+
+    $rootOrdinal = 0;
+    foreach ($childrenByParent[0] ?? [] as $rootBlockId) {
+        if (appendKnowledgeBlockEntries(
+            $plan,
+            $rootBlockId,
+            1,
+            [$rootOrdinal + 1],
+            $blocksById,
+            $childrenByParent,
+            $rowsByBlockAndType
+        )) {
+            $rootOrdinal++;
+        }
+    }
+
+    $unassignedRequiredRows = $rowsByBlockAndType[0]['required'] ?? [];
+    $unassignedElectiveRows = $rowsByBlockAndType[0]['elective'] ?? [];
+    if (!empty($unassignedRequiredRows) || !empty($unassignedElectiveRows)) {
+        $plan[] = [
+            'kind' => 'title',
+            'text' => formatTocNumber([$rootOrdinal + 1]) . ' ' . html_entity_decode('Ch&#432;a ph&#226;n kh&#7889;i ki&#7871;n th&#7913;c', ENT_QUOTES, 'UTF-8'),
+            'depth' => 1,
+            'tocKind' => 'block',
+        ];
+
+        appendModuleTypeEntries($plan, $unassignedRequiredRows, 3, 4, 'required');
+        appendModuleTypeEntries($plan, $unassignedElectiveRows, 3, 4, 'elective');
+    }
+
+    return $plan;
+}
+
+function getMaxTocDepth(array $plan): int
+{
+    $maxDepth = 1;
+
+    foreach ($plan as $entry) {
+        if (($entry['kind'] ?? '') !== 'title') {
+            continue;
+        }
+
+        $maxDepth = max($maxDepth, (int) ($entry['depth'] ?? 1));
+    }
+
+    return capTocDepth($maxDepth);
+}
+
+function buildTocEntries(array $renderPlan): array
+{
+    $entries = [];
+
+    foreach ($renderPlan as $entry) {
+        if (($entry['kind'] ?? '') !== 'title') {
+            continue;
+        }
+
+        $entries[] = [
+            'text' => (string) ($entry['text'] ?? ''),
+            'depth' => (int) ($entry['depth'] ?? 1),
+            'tocKind' => (string) ($entry['tocKind'] ?? 'block'),
+        ];
+    }
+
+    return $entries;
+}
+
+function createTocMarkers(): array
+{
+    $token = strtoupper(substr(md5(uniqid('major_toc_', true)), 0, 12));
+
+    return [
+        'start' => '__MAJOR_TOC_START_' . $token . '__',
+        'end' => '__MAJOR_TOC_END_' . $token . '__',
+    ];
+}
+
+function getTocStyleDefinitions(string $fontName, int $fontSize): array
+{
+    return [
+        'TOC1' => [
+            'font' => ['name' => $fontName, 'size' => $fontSize, 'bold' => true, 'color' => '000000'],
+            'paragraph' => [
+                'spaceBefore' => 0,
+                'spaceAfter' => 80,
+                'lineHeight' => 1.0,
+                'indentation' => ['left' => 0, 'firstLine' => 0, 'hanging' => 0],
+                'contextualSpacing' => true,
+            ],
+        ],
+        'TOC2' => [
+            'font' => ['name' => $fontName, 'size' => $fontSize, 'bold' => true, 'color' => '000000'],
+            'paragraph' => [
+                'spaceBefore' => 0,
+                'spaceAfter' => 40,
+                'lineHeight' => 1.0,
+                'indentation' => ['left' => 360, 'firstLine' => 0, 'hanging' => 0],
+                'contextualSpacing' => true,
+            ],
+        ],
+        'TOC3' => [
+            'font' => ['name' => $fontName, 'size' => $fontSize, 'bold' => true, 'color' => '000000'],
+            'paragraph' => [
+                'spaceBefore' => 40,
+                'spaceAfter' => 20,
+                'lineHeight' => 1.0,
+                'indentation' => ['left' => 0, 'firstLine' => 0, 'hanging' => 0],
+                'contextualSpacing' => true,
+            ],
+        ],
+        'TOC4' => [
+            'font' => ['name' => $fontName, 'size' => $fontSize, 'bold' => false, 'color' => '000000'],
+            'paragraph' => [
+                'spaceBefore' => 0,
+                'spaceAfter' => 0,
+                'lineHeight' => 1.0,
+                'indentation' => ['left' => 0, 'firstLine' => 0, 'hanging' => 0],
+                'contextualSpacing' => true,
+            ],
+        ],
+        'TOC5' => [
+            'font' => ['name' => $fontName, 'size' => $fontSize, 'bold' => false, 'color' => '000000'],
+            'paragraph' => [
+                'spaceBefore' => 0,
+                'spaceAfter' => 0,
+                'lineHeight' => 1.0,
+                'indentation' => ['left' => 360, 'firstLine' => 0, 'hanging' => 0],
+                'contextualSpacing' => true,
+            ],
+        ],
+        'TOC6' => [
+            'font' => ['name' => $fontName, 'size' => $fontSize, 'bold' => false, 'color' => '000000'],
+            'paragraph' => [
+                'spaceBefore' => 0,
+                'spaceAfter' => 0,
+                'lineHeight' => 1.0,
+                'indentation' => ['left' => 720, 'firstLine' => 0, 'hanging' => 0],
+                'contextualSpacing' => true,
+            ],
+        ],
+    ];
+}
+
 function fetchModulePayload(PDO $pdo, int $moduleId): array
 {
     $stmt = $pdo->prepare(
@@ -369,19 +728,13 @@ function buildWordDocument(): array
     $fontSize = 12;
     $fontSizeSmall = 11;
 
-    $tocParagraphStyle = [
-        'spaceBefore' => 0,
-        'spaceAfter' => 0,
-        'lineHeight' => 1.0,
-        'indentation' => ['left' => 0, 'firstLine' => 0, 'hanging' => 0],
-        'contextualSpacing' => true,
-    ];
+    $tocLevelStyles = getTocStyleDefinitions($fontName, $fontSize);
 
-    foreach (['TOC1', 'TOC2', 'TOC3', 'TOC4'] as $tocStyleName) {
+    foreach ($tocLevelStyles as $tocStyleName => $tocStyleDefinition) {
         $phpWord->addFontStyle(
             $tocStyleName,
-            ['name' => $fontName, 'size' => $fontSize, 'bold' => false, 'color' => '000000'],
-            $tocParagraphStyle
+            $tocStyleDefinition['font'],
+            $tocStyleDefinition['paragraph']
         );
     }
 
@@ -392,11 +745,13 @@ function buildWordDocument(): array
         'coverMetaFont' => ['name' => $fontName, 'size' => 14, 'bold' => true],
         'coverTitleFont' => ['name' => $fontName, 'size' => 24, 'bold' => true],
         'coverProgramFont' => ['name' => $fontName, 'size' => 14, 'bold' => true],
+        'tocTitleFont' => ['name' => $fontName, 'size' => 16, 'bold' => true],
         'titleFont' => ['name' => $fontName, 'size' => 14, 'bold' => true],
         'heading1Font' => ['name' => $fontName, 'size' => $fontSize, 'bold' => true],
         'heading2Font' => ['name' => $fontName, 'size' => $fontSize, 'bold' => true],
         'normalFont' => ['name' => $fontName, 'size' => $fontSize],
         'smallFont' => ['name' => $fontName, 'size' => $fontSizeSmall],
+        'tocLevelStyles' => $tocLevelStyles,
         'schoolMinistryFont' => ['name' => $fontName, 'size' => 12, 'bold' => false],
         'schoolNameFont' => ['name' => $fontName, 'size' => 14, 'bold' => true],
         'centerPara' => ['alignment' => Jc::CENTER, 'spaceAfter' => 80],
@@ -450,7 +805,7 @@ function buildWordDocument(): array
         ],
     ];
 
-    for ($level = 1; $level <= 4; $level++) {
+    for ($level = 1; $level <= 6; $level++) {
         $phpWord->addTitleStyle(
             $level,
             ['name' => $fontName, 'size' => 1, 'color' => 'FFFFFF'],
@@ -530,6 +885,45 @@ function addTocSection(PhpWord $phpWord, array $styles, array $groupedModuleRows
             $depth
         );
     }
+}
+
+function addDynamicTocSection(PhpWord $phpWord, array $styles, int $maxDepth): void
+{
+    $section = $phpWord->addSection($styles['sectionStyle']);
+    $section->addText('Má»¤C Lá»¤C', $styles['coverMetaFont'], ['alignment' => Jc::CENTER, 'spaceAfter' => 120]);
+    $section->addTOC(
+        ['name' => $styles['fontName'], 'size' => 12],
+        ['tabLeader' => TocStyle::TAB_LEADER_DOT, 'tabPos' => 9180, 'indent' => 0],
+        1,
+        capTocDepth($maxDepth)
+    );
+}
+
+function addStyledDynamicTocSection(PhpWord $phpWord, array $styles, int $maxDepth, array $markers): void
+{
+    $section = $phpWord->addSection($styles['sectionStyle']);
+    $section->addFooter();
+    $section->addText(
+        html_entity_decode('M&#7908;C L&#7908;C', ENT_QUOTES, 'UTF-8'),
+        $styles['tocTitleFont'],
+        ['alignment' => Jc::CENTER, 'spaceAfter' => 120]
+    );
+    $section->addText(
+        $markers['start'],
+        ['name' => $styles['fontName'], 'size' => 1, 'color' => 'FFFFFF'],
+        ['alignment' => Jc::START, 'spaceAfter' => 0]
+    );
+    $section->addTOC(
+        ['name' => $styles['fontName'], 'size' => 12],
+        ['tabLeader' => TocStyle::TAB_LEADER_DOT, 'tabPos' => 9180, 'indent' => 0],
+        1,
+        capTocDepth($maxDepth)
+    );
+    $section->addText(
+        $markers['end'],
+        ['name' => $styles['fontName'], 'size' => 1, 'color' => 'FFFFFF'],
+        ['alignment' => Jc::START, 'spaceAfter' => 0]
+    );
 }
 
 function addMajorBodySection(PhpWord $phpWord, array $styles): object
@@ -968,6 +1362,409 @@ function setWordAttribute(\DOMElement $element, string $name, string $value): vo
     );
 }
 
+function createWordElement(\DOMDocument $document, string $localName): \DOMElement
+{
+    return $document->createElementNS(
+        'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+        'w:' . $localName
+    );
+}
+
+function getWordParagraphText(\DOMXPath $xpath, \DOMElement $paragraph): string
+{
+    $text = '';
+    $textNodes = $xpath->query('.//w:t', $paragraph);
+    if ($textNodes === false) {
+        return $text;
+    }
+
+    foreach ($textNodes as $textNode) {
+        $text .= $textNode->textContent;
+    }
+
+    return $text;
+}
+
+function getManualTocEntryLayout(array $entry): array
+{
+    $depth = max(1, (int) ($entry['depth'] ?? 1));
+    $tocKind = (string) ($entry['tocKind'] ?? 'block');
+
+    if ($tocKind === 'module') {
+        return [
+            'bold' => false,
+            'showPageNumber' => true,
+            'leftIndent' => max(0, $depth - 4) * 360,
+            'spaceBefore' => 0,
+            'spaceAfter' => 0,
+        ];
+    }
+
+    if ($tocKind === 'module_type') {
+        return [
+            'bold' => true,
+            'showPageNumber' => false,
+            'leftIndent' => max(0, $depth - 3) * 360,
+            'spaceBefore' => 80,
+            'spaceAfter' => 20,
+        ];
+    }
+
+    return [
+        'bold' => true,
+        'showPageNumber' => false,
+        'leftIndent' => max(0, $depth - 1) * 360,
+        'spaceBefore' => 0,
+        'spaceAfter' => $depth === 1 ? 40 : 20,
+    ];
+}
+
+function appendWordRunToParagraph(
+    \DOMDocument $document,
+    \DOMElement $paragraph,
+    string $text,
+    string $fontName,
+    int $fontSize,
+    bool $bold,
+    bool $isTab = false
+): void {
+    $run = createWordElement($document, 'r');
+    $runProperties = createWordElement($document, 'rPr');
+
+    $fonts = createWordElement($document, 'rFonts');
+    setWordAttribute($fonts, 'ascii', $fontName);
+    setWordAttribute($fonts, 'eastAsia', $fontName);
+    setWordAttribute($fonts, 'hAnsi', $fontName);
+    setWordAttribute($fonts, 'cs', $fontName);
+    $runProperties->appendChild($fonts);
+
+    if ($bold) {
+        $boldElement = createWordElement($document, 'b');
+        setWordAttribute($boldElement, 'val', '1');
+        $runProperties->appendChild($boldElement);
+
+        $boldComplexScript = createWordElement($document, 'bCs');
+        setWordAttribute($boldComplexScript, 'val', '1');
+        $runProperties->appendChild($boldComplexScript);
+    }
+
+    $size = createWordElement($document, 'sz');
+    setWordAttribute($size, 'val', (string) ($fontSize * 2));
+    $runProperties->appendChild($size);
+
+    $sizeComplexScript = createWordElement($document, 'szCs');
+    setWordAttribute($sizeComplexScript, 'val', (string) ($fontSize * 2));
+    $runProperties->appendChild($sizeComplexScript);
+
+    $run->appendChild($runProperties);
+
+    if ($isTab) {
+        $run->appendChild(createWordElement($document, 'tab'));
+    } else {
+        $textElement = createWordElement($document, 't');
+        if (preg_match('/^\s|\s$/', $text) === 1) {
+            $textElement->setAttribute('xml:space', 'preserve');
+        }
+        $textElement->appendChild($document->createTextNode($text));
+        $run->appendChild($textElement);
+    }
+
+    $paragraph->appendChild($run);
+}
+
+function createStaticTocParagraph(
+    \DOMDocument $document,
+    array $entry,
+    string $pageNumber,
+    string $fontName,
+    int $fontSize,
+    int $tabPosition
+): \DOMElement {
+    $layout = getManualTocEntryLayout($entry);
+    $paragraph = createWordElement($document, 'p');
+    $paragraphProperties = createWordElement($document, 'pPr');
+
+    $spacing = createWordElement($document, 'spacing');
+    setWordAttribute($spacing, 'before', (string) $layout['spaceBefore']);
+    setWordAttribute($spacing, 'after', (string) $layout['spaceAfter']);
+    setWordAttribute($spacing, 'line', '240');
+    setWordAttribute($spacing, 'lineRule', 'auto');
+    $paragraphProperties->appendChild($spacing);
+
+    if ($layout['leftIndent'] > 0) {
+        $indent = createWordElement($document, 'ind');
+        setWordAttribute($indent, 'left', (string) $layout['leftIndent']);
+        $paragraphProperties->appendChild($indent);
+    }
+
+    if ($layout['showPageNumber']) {
+        $tabs = createWordElement($document, 'tabs');
+        $tab = createWordElement($document, 'tab');
+        setWordAttribute($tab, 'val', 'right');
+        setWordAttribute($tab, 'leader', 'dot');
+        setWordAttribute($tab, 'pos', (string) $tabPosition);
+        $tabs->appendChild($tab);
+        $paragraphProperties->appendChild($tabs);
+    }
+
+    $paragraph->appendChild($paragraphProperties);
+
+    appendWordRunToParagraph(
+        $document,
+        $paragraph,
+        (string) ($entry['text'] ?? ''),
+        $fontName,
+        $fontSize,
+        (bool) $layout['bold']
+    );
+
+    if ($layout['showPageNumber']) {
+        appendWordRunToParagraph($document, $paragraph, '', $fontName, $fontSize, false, true);
+        appendWordRunToParagraph($document, $paragraph, $pageNumber, $fontName, $fontSize, false);
+    }
+
+    return $paragraph;
+}
+
+function extractResolvedTocPageNumber(\DOMXPath $xpath, ?\DOMElement $paragraph): string
+{
+    if (!$paragraph instanceof \DOMElement) {
+        return '';
+    }
+
+    $textNodes = $xpath->query('.//w:t', $paragraph);
+    if ($textNodes === false) {
+        return '';
+    }
+
+    $pageNumber = '';
+    foreach ($textNodes as $textNode) {
+        $candidate = trim($textNode->textContent);
+        if ($candidate !== '' && preg_match('/^\d+$/', $candidate) === 1) {
+            $pageNumber = $candidate;
+        }
+    }
+
+    return $pageNumber;
+}
+
+function removeWordNodeRange(\DOMNode $startNode, \DOMNode $endNode): void
+{
+    $parentNode = $startNode->parentNode;
+    if (!$parentNode instanceof \DOMNode) {
+        return;
+    }
+
+    $currentNode = $startNode;
+    while ($currentNode instanceof \DOMNode) {
+        $nextNode = $currentNode->nextSibling;
+        $shouldStop = $currentNode->isSameNode($endNode);
+        $parentNode->removeChild($currentNode);
+
+        if ($shouldStop) {
+            break;
+        }
+
+        $currentNode = $nextNode;
+    }
+}
+
+function flattenRenderedTocInDocx(
+    string $documentPath,
+    array $tocEntries,
+    array $markers,
+    string $fontName,
+    int $fontSize,
+    int $tabPosition = 9180
+): void {
+    $zip = new ZipArchive();
+    if ($zip->open($documentPath) !== true) {
+        throw new RuntimeException('KhÃ´ng thá»ƒ má»Ÿ tá»‡p Word Ä‘á»ƒ chuáº©n hÃ³a má»¥c lá»¥c.');
+    }
+
+    try {
+        $documentXml = $zip->getFromName('word/document.xml');
+        if ($documentXml === false) {
+            return;
+        }
+
+        $document = new \DOMDocument('1.0', 'UTF-8');
+        $document->preserveWhiteSpace = false;
+        $document->formatOutput = false;
+
+        if (!@$document->loadXML($documentXml)) {
+            throw new RuntimeException('KhÃ´ng thá»ƒ Ä‘á»c ná»™i dung tá»‡p Word Ä‘á»ƒ chuáº©n hÃ³a má»¥c lá»¥c.');
+        }
+
+        $xpath = new \DOMXPath($document);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+        $bodyNodes = $xpath->query('/w:document/w:body');
+        $paragraphNodes = $xpath->query('/w:document/w:body/w:p');
+        if ($bodyNodes === false || $paragraphNodes === false || $bodyNodes->length === 0) {
+            return;
+        }
+
+        $body = $bodyNodes->item(0);
+        if (!$body instanceof \DOMElement) {
+            return;
+        }
+
+        $startParagraph = null;
+        $endParagraph = null;
+        foreach ($paragraphNodes as $paragraphNode) {
+            if (!$paragraphNode instanceof \DOMElement) {
+                continue;
+            }
+
+            $paragraphText = getWordParagraphText($xpath, $paragraphNode);
+            if ($startParagraph === null && str_contains($paragraphText, (string) $markers['start'])) {
+                $startParagraph = $paragraphNode;
+                continue;
+            }
+
+            if (str_contains($paragraphText, (string) $markers['end'])) {
+                $endParagraph = $paragraphNode;
+                break;
+            }
+        }
+
+        if (!$startParagraph instanceof \DOMElement || !$endParagraph instanceof \DOMElement) {
+            return;
+        }
+
+        $existingTocParagraphs = [];
+        $currentNode = $startParagraph->nextSibling;
+        while ($currentNode instanceof \DOMNode && !$currentNode->isSameNode($endParagraph)) {
+            if ($currentNode instanceof \DOMElement && $currentNode->namespaceURI === 'http://schemas.openxmlformats.org/wordprocessingml/2006/main' && $currentNode->localName === 'p') {
+                $existingTocParagraphs[] = $currentNode;
+            }
+            $currentNode = $currentNode->nextSibling;
+        }
+
+        $pageNumbers = [];
+        foreach ($tocEntries as $index => $entry) {
+            $pageNumbers[$index] = (($entry['tocKind'] ?? '') === 'module')
+                ? extractResolvedTocPageNumber($xpath, $existingTocParagraphs[$index] ?? null)
+                : '';
+        }
+
+        foreach ($tocEntries as $index => $entry) {
+            $body->insertBefore(
+                createStaticTocParagraph(
+                    $document,
+                    $entry,
+                    (string) ($pageNumbers[$index] ?? ''),
+                    $fontName,
+                    $fontSize,
+                    $tabPosition
+                ),
+                $startParagraph
+            );
+        }
+
+        removeWordNodeRange($startParagraph, $endParagraph);
+        $zip->addFromString('word/document.xml', $document->saveXML());
+    } finally {
+        $zip->close();
+    }
+}
+
+function normalizeStyledTocStylesInDocx(string $documentPath, array $tocLevelStyles): void
+{
+    $zip = new ZipArchive();
+    if ($zip->open($documentPath) !== true) {
+        throw new RuntimeException('KhÃ´ng thá»ƒ má»Ÿ tá»‡p Word Ä‘á»ƒ chuáº©n hÃ³a má»¥c lá»¥c.');
+    }
+
+    try {
+        $stylesXml = $zip->getFromName('word/styles.xml');
+        if ($stylesXml === false) {
+            return;
+        }
+
+        $document = new \DOMDocument('1.0', 'UTF-8');
+        $document->preserveWhiteSpace = false;
+        $document->formatOutput = false;
+
+        if (!@$document->loadXML($stylesXml)) {
+            throw new RuntimeException('KhÃ´ng thá»ƒ Ä‘á»c cáº¥u hÃ¬nh style cá»§a tá»‡p Word.');
+        }
+
+        $xpath = new \DOMXPath($document);
+        $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+
+        $tocStyles = $xpath->query('//w:style[starts-with(@w:styleId, "TOC")]');
+        if ($tocStyles === false) {
+            return;
+        }
+
+        foreach ($tocStyles as $style) {
+            if (!$style instanceof \DOMElement) {
+                continue;
+            }
+
+            $styleId = $style->getAttributeNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'styleId');
+            if ($styleId === '') {
+                $styleId = $style->getAttribute('w:styleId');
+            }
+
+            $styleDefinition = $tocLevelStyles[$styleId] ?? $tocLevelStyles['TOC4'] ?? null;
+            if (!is_array($styleDefinition)) {
+                continue;
+            }
+
+            $paragraphDefinition = $styleDefinition['paragraph'] ?? [];
+            $fontDefinition = $styleDefinition['font'] ?? [];
+            $fontName = (string) ($fontDefinition['name'] ?? 'Times New Roman');
+            $fontSize = (int) ($fontDefinition['size'] ?? 12);
+            $indentationDefinition = $paragraphDefinition['indentation'] ?? [];
+
+            $paragraphProperties = ensureWordChildElement($document, $style, 'pPr');
+
+            $spacing = ensureWordChildElement($document, $paragraphProperties, 'spacing');
+            setWordAttribute($spacing, 'before', (string) ((int) ($paragraphDefinition['spaceBefore'] ?? 0)));
+            setWordAttribute($spacing, 'after', (string) ((int) ($paragraphDefinition['spaceAfter'] ?? 0)));
+            setWordAttribute($spacing, 'line', (string) (int) round(((float) ($paragraphDefinition['lineHeight'] ?? 1.0)) * 240));
+            setWordAttribute($spacing, 'lineRule', 'auto');
+
+            $indent = ensureWordChildElement($document, $paragraphProperties, 'ind');
+            setWordAttribute($indent, 'left', (string) ((int) ($indentationDefinition['left'] ?? 0)));
+            setWordAttribute($indent, 'firstLine', (string) ((int) ($indentationDefinition['firstLine'] ?? 0)));
+            setWordAttribute($indent, 'hanging', (string) ((int) ($indentationDefinition['hanging'] ?? 0)));
+
+            ensureWordChildElement($document, $paragraphProperties, 'contextualSpacing');
+
+            $runProperties = ensureWordChildElement($document, $style, 'rPr');
+
+            $fonts = ensureWordChildElement($document, $runProperties, 'rFonts');
+            setWordAttribute($fonts, 'ascii', $fontName);
+            setWordAttribute($fonts, 'eastAsia', $fontName);
+            setWordAttribute($fonts, 'hAnsi', $fontName);
+            setWordAttribute($fonts, 'cs', $fontName);
+
+            $color = ensureWordChildElement($document, $runProperties, 'color');
+            setWordAttribute($color, 'val', (string) ($fontDefinition['color'] ?? '000000'));
+
+            $bold = ensureWordChildElement($document, $runProperties, 'b');
+            setWordAttribute($bold, 'val', !empty($fontDefinition['bold']) ? '1' : '0');
+
+            $boldComplexScript = ensureWordChildElement($document, $runProperties, 'bCs');
+            setWordAttribute($boldComplexScript, 'val', !empty($fontDefinition['bold']) ? '1' : '0');
+
+            $size = ensureWordChildElement($document, $runProperties, 'sz');
+            setWordAttribute($size, 'val', (string) ($fontSize * 2));
+
+            $sizeComplexScript = ensureWordChildElement($document, $runProperties, 'szCs');
+            setWordAttribute($sizeComplexScript, 'val', (string) ($fontSize * 2));
+        }
+
+        $zip->addFromString('word/styles.xml', $document->saveXML());
+    } finally {
+        $zip->close();
+    }
+}
+
 function normalizeTocStylesInDocx(string $documentPath, string $fontName, int $fontSize): void
 {
     $zip = new ZipArchive();
@@ -1058,24 +1855,40 @@ if (empty($moduleRows)) {
     exit('Ngành này chưa có đề cương học phần để xuất.');
 }
 
-$groupedModuleRows = groupModuleRowsByType($moduleRows);
-$totalModules = count($moduleRows);
+$knowledgeBlocks = fetchMajorKnowledgeBlocks($pdo, $majorId);
+$renderPlan = buildMajorRenderPlan($knowledgeBlocks, $moduleRows);
+$tocEntries = buildTocEntries($renderPlan);
+$tocMarkers = createTocMarkers();
+$totalModules = count(
+    array_filter(
+        $renderPlan,
+        static fn(array $entry): bool => ($entry['kind'] ?? '') === 'module'
+    )
+);
+$maxTocDepth = getMaxTocDepth($renderPlan);
 
 [$phpWord, $styles] = buildWordDocument();
 
 addMajorCoverPage($phpWord, $major, $styles);
-addTocSection($phpWord, $styles, $groupedModuleRows);
+addStyledDynamicTocSection($phpWord, $styles, $maxTocDepth, $tocMarkers);
 $bodySection = addMajorBodySection($phpWord, $styles);
 
 $renderedModules = 0;
-foreach ($groupedModuleRows as $type => $group) {
-    foreach ($group['rows'] as $row) {
-        $payload = fetchModulePayload($pdo, (int) $row['module_id']);
-        addHiddenTocTitle($bodySection, s($payload['module']['name']), getTocDepthForType($type));
-
-        $renderedModules++;
-        addModuleBody($bodySection, $payload, $styles, $renderedModules < $totalModules);
+foreach ($renderPlan as $entry) {
+    if (($entry['kind'] ?? '') === 'title') {
+        addHiddenTocTitle($bodySection, (string) $entry['text'], (int) $entry['depth']);
+        continue;
     }
+
+    if (($entry['kind'] ?? '') !== 'module') {
+        continue;
+    }
+
+    $row = $entry['row'];
+    $payload = fetchModulePayload($pdo, (int) $row['module_id']);
+
+    $renderedModules++;
+    addModuleBody($bodySection, $payload, $styles, $renderedModules < $totalModules);
 }
 
 $baseFilename = 'Quyen_De_Cuong_' . buildSafeFilenamePart(s($major['name']), 'major');
@@ -1094,7 +1907,7 @@ try {
     $writer = IOFactory::createWriter($phpWord, 'Word2007');
     $writer->save($temporaryDocxPath);
     updateWordFields($temporaryDocxPath);
-    normalizeTocStylesInDocx($temporaryDocxPath, $styles['fontName'], 12);
+    flattenRenderedTocInDocx($temporaryDocxPath, $tocEntries, $tocMarkers, $styles['fontName'], 12);
     exportWordPdf($temporaryDocxPath, $temporaryPdfPath);
 
     clearstatcache(true, $temporaryPdfPath);
