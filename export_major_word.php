@@ -32,6 +32,65 @@ function normalizeMajorName(string $value): string
     return mb_strtolower(trim($value), 'UTF-8');
 }
 
+function transliterateVietnameseToAscii(string $value): string
+{
+    return strtr($value, [
+        'à' => 'a', 'á' => 'a', 'ạ' => 'a', 'ả' => 'a', 'ã' => 'a',
+        'â' => 'a', 'ầ' => 'a', 'ấ' => 'a', 'ậ' => 'a', 'ẩ' => 'a', 'ẫ' => 'a',
+        'ă' => 'a', 'ằ' => 'a', 'ắ' => 'a', 'ặ' => 'a', 'ẳ' => 'a', 'ẵ' => 'a',
+        'è' => 'e', 'é' => 'e', 'ẹ' => 'e', 'ẻ' => 'e', 'ẽ' => 'e',
+        'ê' => 'e', 'ề' => 'e', 'ế' => 'e', 'ệ' => 'e', 'ể' => 'e', 'ễ' => 'e',
+        'ì' => 'i', 'í' => 'i', 'ị' => 'i', 'ỉ' => 'i', 'ĩ' => 'i',
+        'ò' => 'o', 'ó' => 'o', 'ọ' => 'o', 'ỏ' => 'o', 'õ' => 'o',
+        'ô' => 'o', 'ồ' => 'o', 'ố' => 'o', 'ộ' => 'o', 'ổ' => 'o', 'ỗ' => 'o',
+        'ơ' => 'o', 'ờ' => 'o', 'ớ' => 'o', 'ợ' => 'o', 'ở' => 'o', 'ỡ' => 'o',
+        'ù' => 'u', 'ú' => 'u', 'ụ' => 'u', 'ủ' => 'u', 'ũ' => 'u',
+        'ư' => 'u', 'ừ' => 'u', 'ứ' => 'u', 'ự' => 'u', 'ử' => 'u', 'ữ' => 'u',
+        'ỳ' => 'y', 'ý' => 'y', 'ỵ' => 'y', 'ỷ' => 'y', 'ỹ' => 'y',
+        'đ' => 'd',
+        'À' => 'A', 'Á' => 'A', 'Ạ' => 'A', 'Ả' => 'A', 'Ã' => 'A',
+        'Â' => 'A', 'Ầ' => 'A', 'Ấ' => 'A', 'Ậ' => 'A', 'Ẩ' => 'A', 'Ẫ' => 'A',
+        'Ă' => 'A', 'Ằ' => 'A', 'Ắ' => 'A', 'Ặ' => 'A', 'Ẳ' => 'A', 'Ẵ' => 'A',
+        'È' => 'E', 'É' => 'E', 'Ẹ' => 'E', 'Ẻ' => 'E', 'Ẽ' => 'E',
+        'Ê' => 'E', 'Ề' => 'E', 'Ế' => 'E', 'Ệ' => 'E', 'Ể' => 'E', 'Ễ' => 'E',
+        'Ì' => 'I', 'Í' => 'I', 'Ị' => 'I', 'Ỉ' => 'I', 'Ĩ' => 'I',
+        'Ò' => 'O', 'Ó' => 'O', 'Ọ' => 'O', 'Ỏ' => 'O', 'Õ' => 'O',
+        'Ô' => 'O', 'Ồ' => 'O', 'Ố' => 'O', 'Ộ' => 'O', 'Ổ' => 'O', 'Ỗ' => 'O',
+        'Ơ' => 'O', 'Ờ' => 'O', 'Ớ' => 'O', 'Ợ' => 'O', 'Ở' => 'O', 'Ỡ' => 'O',
+        'Ù' => 'U', 'Ú' => 'U', 'Ụ' => 'U', 'Ủ' => 'U', 'Ũ' => 'U',
+        'Ư' => 'U', 'Ừ' => 'U', 'Ứ' => 'U', 'Ự' => 'U', 'Ử' => 'U', 'Ữ' => 'U',
+        'Ỳ' => 'Y', 'Ý' => 'Y', 'Ỵ' => 'Y', 'Ỷ' => 'Y', 'Ỹ' => 'Y',
+        'Đ' => 'D',
+    ]);
+}
+
+function buildSafeFilenamePart(string $value, string $fallback = 'file'): string
+{
+    $value = transliterateVietnameseToAscii(trim($value));
+    $value = preg_replace('/[^A-Za-z0-9._-]+/', '_', $value) ?? '';
+    $value = preg_replace('/_+/', '_', $value) ?? '';
+    $value = trim($value, '._-');
+
+    return $value !== '' ? $value : $fallback;
+}
+
+function sendDownloadHeaders(string $filename, string $contentType, ?int $contentLength = null): void
+{
+    $fallback = buildSafeFilenamePart(pathinfo($filename, PATHINFO_FILENAME), 'download');
+    $extension = pathinfo($filename, PATHINFO_EXTENSION);
+    if ($extension !== '') {
+        $fallback .= '.' . $extension;
+    }
+
+    header('Content-Type: ' . $contentType);
+    header("Content-Disposition: attachment; filename=\"{$fallback}\"; filename*=UTF-8''" . rawurlencode($filename));
+    if ($contentLength !== null) {
+        header('Content-Length: ' . $contentLength);
+    }
+    header('Cache-Control: max-age=0');
+    header('Pragma: public');
+}
+
 function resolveMajorMetadata(string $majorName): array
 {
     $map = [
@@ -371,20 +430,20 @@ function buildWordDocument(): array
         'sectionStyle' => [
             'pageSizeW' => 12240,
             'pageSizeH' => 15840,
-            'marginTop' => 1440,
-            'marginRight' => 1440,
-            'marginBottom' => 1440,
-            'marginLeft' => 1620,
+            'marginTop' => 1418,
+            'marginRight' => 1134,
+            'marginBottom' => 1134,
+            'marginLeft' => 1701,
             'headerHeight' => 720,
             'footerHeight' => 720,
         ],
         'bodySectionStyle' => [
             'pageSizeW' => 12240,
             'pageSizeH' => 15840,
-            'marginTop' => 1440,
-            'marginRight' => 1440,
-            'marginBottom' => 1440,
-            'marginLeft' => 1620,
+            'marginTop' => 1418,
+            'marginRight' => 1134,
+            'marginBottom' => 1134,
+            'marginLeft' => 1701,
             'headerHeight' => 720,
             'footerHeight' => 720,
             'pageNumberingStart' => 1,
@@ -407,6 +466,9 @@ function addMajorCoverPage(PhpWord $phpWord, array $major, array $styles): void
     $meta = resolveMajorMetadata(s($major['name']));
 
     $section = $phpWord->addSection($styles['sectionStyle']);
+    $footer = $section->addFooter();
+    $coverFooterText = html_entity_decode('C&#7847;n Th&#417;, n&#259;m ' . date('Y'), ENT_QUOTES, 'UTF-8');
+    $footer->addText($coverFooterText, $styles['coverMetaFont'], ['alignment' => Jc::CENTER, 'spaceAfter' => 0]);
 
     $ministryTable = $section->addTable([
         'borderSize' => 0,
@@ -441,8 +503,6 @@ function addMajorCoverPage(PhpWord $phpWord, array $major, array $styles): void
     $detailCell->addText('MÃ NGÀNH: ' . s($meta['code']), $styles['coverProgramFont'], ['alignment' => Jc::START, 'spaceAfter' => 80]);
     $detailCell->addText('TRÌNH ĐỘ: ĐẠI HỌC', $styles['coverProgramFont'], ['alignment' => Jc::START, 'spaceAfter' => 80]);
 
-    $section->addTextBreak(11);
-    $section->addText('CẦN THƠ, NĂM ' . date('Y'), $styles['coverMetaFont'], ['alignment' => Jc::CENTER]);
 }
 
 function addTocSection(PhpWord $phpWord, array $styles, array $groupedModuleRows): void
@@ -815,7 +875,19 @@ function createTemporaryDocxPath(string $prefix): string
     return $temporaryBase . '.docx';
 }
 
-function updateWordFields(string $documentPath): void
+function createTemporaryFilePath(string $prefix, string $extension, string $errorMessage): string
+{
+    $temporaryBase = tempnam(sys_get_temp_dir(), $prefix);
+    if ($temporaryBase === false) {
+        throw new RuntimeException($errorMessage);
+    }
+
+    @unlink($temporaryBase);
+
+    return $temporaryBase . $extension;
+}
+
+function runWordAutomation(string $documentPath, ?string $pdfPath = null, bool $exportPdfOnly = false): void
 {
     $scriptPath = __DIR__ . DIRECTORY_SEPARATOR . '_support' . DIRECTORY_SEPARATOR . 'update_word_fields.ps1';
     if (!is_file($scriptPath)) {
@@ -827,6 +899,14 @@ function updateWordFields(string $documentPath): void
         . ' -DocumentPath '
         . escapeshellarg($documentPath);
 
+    if ($pdfPath !== null) {
+        $command .= ' -PdfPath ' . escapeshellarg($pdfPath);
+    }
+
+    if ($exportPdfOnly) {
+        $command .= ' -ExportPdfOnly';
+    }
+
     exec($command . ' 2>&1', $output, $exitCode);
 
     if ($exitCode !== 0) {
@@ -837,6 +917,16 @@ function updateWordFields(string $documentPath): void
 
         throw new RuntimeException($message);
     }
+}
+
+function updateWordFields(string $documentPath): void
+{
+    runWordAutomation($documentPath);
+}
+
+function exportWordPdf(string $documentPath, string $pdfPath): void
+{
+    runWordAutomation($documentPath, $pdfPath, true);
 }
 
 function findWordChildElement(\DOMElement $parent, string $localName): ?\DOMElement
@@ -988,8 +1078,8 @@ foreach ($groupedModuleRows as $type => $group) {
     }
 }
 
-$safeMajorName = preg_replace('/[^A-Za-z0-9_\-]/', '_', s($major['name']));
-$filename = 'Quyen_De_Cuong_' . $safeMajorName . '.docx';
+$baseFilename = 'Quyen_De_Cuong_' . buildSafeFilenamePart(s($major['name']), 'major');
+$pdfFilename = $baseFilename . '.pdf';
 
 if (!class_exists('ZipArchive')) {
     http_response_code(500);
@@ -998,22 +1088,20 @@ if (!class_exists('ZipArchive')) {
 }
 
 $temporaryDocxPath = createTemporaryDocxPath('major_word_');
+$temporaryPdfPath = createTemporaryFilePath('major_pdf_', '.pdf', 'Khong the tao tep PDF tam.');
 
 try {
     $writer = IOFactory::createWriter($phpWord, 'Word2007');
     $writer->save($temporaryDocxPath);
     updateWordFields($temporaryDocxPath);
     normalizeTocStylesInDocx($temporaryDocxPath, $styles['fontName'], 12);
+    exportWordPdf($temporaryDocxPath, $temporaryPdfPath);
 
-    clearstatcache(true, $temporaryDocxPath);
+    clearstatcache(true, $temporaryPdfPath);
 
-    header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
-    header('Content-Length: ' . filesize($temporaryDocxPath));
-    header('Cache-Control: max-age=0');
-    header('Pragma: public');
+    sendDownloadHeaders($pdfFilename, 'application/pdf', filesize($temporaryPdfPath));
 
-    readfile($temporaryDocxPath);
+    readfile($temporaryPdfPath);
     exit;
 } catch (Throwable $e) {
     http_response_code(500);
@@ -1022,5 +1110,8 @@ try {
 } finally {
     if (is_file($temporaryDocxPath)) {
         @unlink($temporaryDocxPath);
+    }
+    if (is_file($temporaryPdfPath)) {
+        @unlink($temporaryPdfPath);
     }
 }

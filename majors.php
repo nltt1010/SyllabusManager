@@ -72,7 +72,7 @@ $majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH
                                     <td>
                                         <div class="d-flex gap-2 justify-content-center">
                                             <a href="export_major_word.php?id=<?= h($m['id']) ?>" class="btn btn-success btn-sm">
-                                                Xuất Word
+                                                Xu&#7845;t PDF
                                             </a>
                                             <form method="post" style="margin: 0;">
                                                 <button class="button danger button_del" name="delete" value="<?= h($m['id']) ?>">
