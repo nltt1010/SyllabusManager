@@ -387,6 +387,30 @@ if($course_id){
 const dbFacilities = <?php echo json_encode($facilitiesList); ?>;
 const dbBooks = <?php echo json_encode($booksCatalog); ?>;
 const dbCoursesList = <?php echo json_encode($courses); ?>;
+const verbsDictionary = {
+    "Kiến thức": {
+        "1. Nhớ": "Liệt kê, kể tên, định nghĩa, mô tả, nêu, chỉ ra, nhận biết, trình bày, phân loại",
+        "2. Hiểu": "Giải thích, tóm tắt, so sánh, phân biệt, minh họa, trình bày lại bằng lời, mô tả ý nghĩa, phân tích sơ bộ",
+        "3. Vận dụng": "Thực hiện, áp dụng, sử dụng, giải quyết, minh họa bằng ví dụ, tiến hành, áp dụng quy trình, xử trí",
+        "4. Phân tích": "Phân tích, phân loại, đối chiếu, so sánh, chứng minh, suy luận, chỉ ra nguyên nhân – kết quả, lập luận, giải thích mối liên hệ",
+        "5. Đánh giá": "Đánh giá, bình luận, phê bình, so sánh ưu/nhược điểm, đưa ra kết luận, lựa chọn, phản biện, bảo vệ quan điểm, đề xuất, quyết định",
+        "6. Sáng tạo": "Thiết kế, xây dựng, phát triển, đề xuất giải pháp, sáng tạo, lập kế hoạch, vận dụng, mô hình hóa, soạn thảo, phát minh, tổng hợp ý tưởng"
+    },
+    "Kỹ năng": {
+        "1. Bắt chước": "Quan sát, tuân thủ, làm theo, sao chép, bắt chước, nhắc lại, lặp lại, tái tạo, mô phỏng, lựa chọn, nhận thấy",
+        "2. Làm được": "Làm, thực hiện, thi hành, tái hiện lại, trình diễn",
+        "3. Làm chính xác": "kiểm tra, làm, thực hiện, thực hiện đầy đủ, hoàn thiện, điều khiển, kiểm soát, trình diễn, sử dụng/làm thành thạo, chỉ rõ, phân biệt, xây dựng, tích hợp, phán đoán, lựa chọn",
+        "4. Thành thạo": "thích ứng, thực hiện thành thạo, phối hợp, thiết lập, xây dựng, sắp xếp, sáng tạo, Giải quyết, chẩn đoán, điều trị, thích nghi, kết hợp, phối hợp, tích hợp, hình thành, phát triển, làm chủ, điều chỉnh, sửa đổi, thích nghi",
+        "5. Thành bản năng": "thiết kế, phát triển, phát minh, hỗ trợ, sửa chữa, trình diễn, hướng dẫn, quản lý, xác định"
+    },
+    "Thái độ": {
+        "1. Tiếp nhận": "Công nhận, nhận biết, chấp nhận, ý thức được, hỏi, để ý, mô tả, quan sát, tuân thủ, nhận định, lắng nghe, nhìn nhận",
+        "2. Đáp ứng": "Hành xử, phản ứng, tuân theo, tuân thủ, làm cho đúng, phối hợp, xem xét, dò xét, lựa chọn, đóng góp, tình nguyện",
+        "3. Nội tâm hóa": "Thích ứng, cân bằng, phản kháng, phê bình, đối chiếu, so sánh, phân biệt, bảo vệ, biện hộ, thuyết phục, tìm kiếm, thừa nhận, tán thành, đề nghị",
+        "4. Tổ chức": "Thay đổi, điều chỉnh, tổ chức, so sánh, đánh giá, phát triển, tích hợp, sắp xếp, hình thành, thiết lập, kết nối, trung thành, gắn kết",
+        "5. Hình thành phẩm chất": "Thực hiện, biểu lộ, biện hộ, ảnh hưởng, đề xuất, đại diện, xác nhận giá trị, biện giải, thôi thúc, duy trì, gìn giữ, kiên nhẫn, ủng hộ, cống hiến, điều chỉnh, duy trì, thể hiện, thực hành, cam kết"
+    }
+};
 
 function h(value) {
     return String(value ?? '')
@@ -403,26 +427,26 @@ const assessmentMethods = ["Chuyên cần", "Thi viết", "Thi kết thúc", "Ki
 // Định nghĩa từ điển Bloom Taxonomy mở rộng
 const bloomDictionary = {
     "Kiến thức": [
-        "1. Remember (Nhớ)",
-        "2. Understand (Hiểu)",
-        "3. Apply (Vận dụng)",
-        "4. Analyze (Phân tích)",
-        "5. Evaluate (Đánh giá)",
-        "6. Create (Sáng tạo)"
+        "1. Nhớ",
+        "2. Hiểu",
+        "3. Vận dụng",
+        "4. Phân tích",
+        "5. Đánh giá",
+        "6. Sáng tạo"
     ],
     "Kỹ năng": [
-        "1. Imitation (Bắt chước)",
-        "2. Manipulation (Làm được)",
-        "3. Precision (Làm chính xác)",
-        "4. Articulation (Thành thạo)",
-        "5. Naturalization (Thành bản năng)"
+        "1. Bắt chước",
+        "2. Làm được",
+        "3. Làm chính xác",
+        "4. Thành thạo",
+        "5. Thành bản năng"
     ],
     "Thái độ": [
-        "1. Receiving (Tiếp nhận)",
-        "2. Responding (Đáp ứng)",
-        "3. Valuing (Nội tâm hóa)",
-        "4. Organizing (Tổ chức)",
-        "5. Characterizing (Hình thành phẩm chất)"
+        "1. Tiếp nhận",
+        "2. Đáp ứng",
+        "3. Nội tâm hóa",
+        "4. Tổ chức",
+        "5. Hình thành phẩm chất"
     ]
 };
 
@@ -470,6 +494,48 @@ function calculateTotalHours() {
 let cloIndex = 0;
 let assessmentRowIndex = 0;
 
+function updateVerbsHint(selectEl) {
+    // Tìm hàng (tr) hiện tại của phần tử đang tương tác
+    const tr = selectEl.closest('tr');
+    const textarea = tr.querySelector('.c-desc');
+    const hintEl = tr.querySelector('.verbs-hint');
+    
+    let combinedHints = [];
+    let placeholderHints = [];
+    
+    // Quét qua tất cả các ô select Bloom trong hàng này
+    tr.querySelectorAll('.sel-bloom-item').forEach(sel => {
+        if (!sel.disabled && sel.value) {
+            const domain = sel.getAttribute('data-domain');
+            const bloomLevel = sel.value;
+            
+            // Lấy từ gợi ý từ Dictionary
+            if (verbsDictionary[domain] && verbsDictionary[domain][bloomLevel]) {
+                // Tách lấy chữ "Nhớ", "Hiểu" từ chuỗi "1. Nhớ", "2. Hiểu"
+                const levelName = bloomLevel.includes('. ') ? bloomLevel.split('. ')[1] : bloomLevel;
+                const words = verbsDictionary[domain][bloomLevel];
+                
+                // Chuỗi hiển thị HTML có xuống dòng bằng <br>
+                combinedHints.push(`<strong>[${levelName}]:</strong> ${words}`);
+                // Chuỗi hiển thị cho placeholder (dùng dấu phẩy phân cách vì placeholder không nhận xuống dòng)
+                placeholderHints.push(words);
+            }
+        }
+    });
+    
+    // Cập nhật lên giao diện
+    if (combinedHints.length > 0) {
+        // Hiển thị chữ gợi ý dưới ô nhập liệu, mỗi nhóm nằm trên 1 dòng nhờ dấu <br>
+        hintEl.innerHTML = combinedHints.join('<br>');
+        
+        // Cập nhật thuộc tính placeholder của textarea
+        textarea.setAttribute('placeholder', 'Gợi ý từ: ' + placeholderHints.join(', '));
+    } else {
+        hintEl.innerHTML = "";
+        textarea.setAttribute('placeholder', 'Nhập mô tả...');
+    }
+}
+
 function addCloRow() {
     cloIndex++;
     const tbody = document.querySelector('#cloTable tbody');
@@ -490,17 +556,19 @@ function addCloRow() {
                        onchange="toggleBloomSelect(this, '${domain}', '${uid}', ${idx})">
                 <label class="form-check-label" for="${cbId}">${domain}</label>
             </div>`;
+        // BỔ SUNG: Thêm thuộc tính data-domain và sự kiện onchange="updateVerbsHint(this)"
         bloomHtml += `
             <div class="mb-1">
                 <select class="form-select form-select-sm sel-bloom-item" id="${uid}_b${idx}" disabled
-                        name="clo_bloom_${rowId}[]"
+                        name="clo_bloom_${rowId}[]" data-domain="${domain}"
+                        onchange="updateVerbsHint(this)"
                         style="opacity: 0.45; font-size: 13px;">
                     <option value="">-- Chọn lĩnh vực trước --</option>
                 </select>
             </div>`;
     });
 
-    // QUAN TRỌNG: Ô nhập TT phải giữ lại class="form-control c-code text-center fw-bold"
+    // QUAN TRỌNG: Thêm một thẻ nhỏ <small class="verbs-hint"> dưới textarea để hiển thị từ gợi ý trực quan
     tr.innerHTML = `
         <td>${domainHtml}</td>
         <td>${bloomHtml}</td>
@@ -510,6 +578,7 @@ function addCloRow() {
         </td>
         <td>
             <textarea class="form-control c-desc" name="clo_description[]" rows="3" placeholder="Nhập mô tả..."></textarea>
+            <small class="form-helper verbs-hint d-block mt-1 text-primary fw-semibold" style="min-height: 18px;"></small>
         </td>
         <td class="text-center">
             <button type="button" class="btn btn-sm btn-danger" onclick="removeCloRow(this)">Xóa</button>
@@ -517,7 +586,6 @@ function addCloRow() {
     `;
     tbody.appendChild(tr);
     
-    // Tự động gán số thứ tự gợi ý tạm thời (Người dùng vẫn click vào sửa tay được)
     reindexCloTable();
 }
 
@@ -570,6 +638,8 @@ function toggleBloomSelect(checkbox, domain, uid, idx) {
         sel.value = '';
         sel.disabled = true;
         sel.style.opacity = '0.45';
+        // Khi bỏ chọn checkbox Lĩnh vực, cập nhật lại gợi ý từ ngữ
+        updateVerbsHint(sel);
     }
 }
 

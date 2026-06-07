@@ -283,11 +283,29 @@ $html = '
         <tbody>';
         if (!empty($clos)) {
             foreach ($clos as $c) {
+                // 1. Tách chuỗi Lĩnh vực, làm sạch từng phần tử rồi mới nối bằng <br>
+                $domainArr = explode(',', s($c['domain']));
+                $domainCleaned = array_map(function($d) {
+                    return htmlspecialchars(trim($d));
+                }, $domainArr);
+                $domainHtml = implode('<br>', $domainCleaned);
+
+                // 2. Tách chuỗi Mức độ, làm sạch số thứ tự, loại ký tự đặc biệt rồi mới nối bằng <br>
+                $bloomArr = explode(',', s($c['bloom_level']));
+                $bloomCleaned = array_map(function($b) {
+                    $b = trim($b);
+                    // Nếu chuỗi có dạng "1. Nhớ" thì tách lấy chữ "Nhớ"
+                    $pureText = (strpos($b, '. ') !== false) ? explode('. ', $b)[1] : $b;
+                    return htmlspecialchars($pureText);
+                }, $bloomArr);
+                $bloomHtml = implode('<br>', $bloomCleaned);
+
+                // 3. Đưa vào hàng của bảng HTML (Bỏ htmlspecialchars ở ngoài biến $domainHtml và $bloomHtml)
                 $html .= '<tr>
-                    <td>' . htmlspecialchars(s($c['domain'])) . '</td>
-                    <td>' . htmlspecialchars(s($c['bloom_level'])) . '</td>
-                    <td class="text-center">' . htmlspecialchars(s($c['code'])) . '</td>
-                    <td>' . htmlspecialchars(s($c['description'])) . '</td>
+                    <td style="vertical-align: top;">' . $domainHtml . '</td>
+                    <td class="text-center" style="vertical-align: top;">' . $bloomHtml . '</td>
+                    <td class="text-center" style="vertical-align: top;">' . htmlspecialchars(s($c['code'])) . '</td>
+                    <td style="vertical-align: top;">' . nl2br(htmlspecialchars(s($c['description']))) . '</td>
                 </tr>';
             }
         } else {
