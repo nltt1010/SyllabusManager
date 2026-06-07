@@ -146,8 +146,8 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
     <p><a href="list.php">Xem danh sách học phần</a> | <a href="index.php">Thêm mới đề cương</a></p>
     <h2 class="text-center main-title">Chi tiết Đề cương chi tiết học phần</h2>
 
-    <a href="export_word.php?id=<?= $module['id'] ?>" class="btn btn-success">
-        Xuất file Word
+    <a href="course_detail_export.php?id=<?= $module['id'] ?>" class="btn btn-success">
+        Xuất PDF
     </a>
 
     <div class="section-title">1. THÔNG TIN HỌC PHẦN</div>
@@ -273,7 +273,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                     <th style="width: 15%; text-align: center;">PLO/PI liên quan</th>
                     <th style="width: 30%;">Hình thức đánh giá</th>
                     <th style="width: 28%;">Công cụ đánh giá</th>
-                    <th style="width: 12%; text-align: center;">Trọng số (%)</th>
+                    <th style="width: 12%; text-align: center;">Trọng số</th>
                 </tr>
             </thead>
             <tbody>

@@ -1,6 +1,7 @@
 <?php
 require 'db.php';
-
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 // Handle POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add'])) {
@@ -41,7 +42,8 @@ $majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH
             <div class="section-title">Thêm ngành</div>
             
             <form method="post" class="row-input">
-                <input name="name" placeholder="Tên ngành" required>                    <button class="button" name="add">Thêm</button>
+                <input name="name" placeholder="Tên ngành" required>                    
+                <button class="button" name="add">Thêm</button>
             </form>
         </div>
 
@@ -71,9 +73,12 @@ $majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH
                                     <td><?= h($m['name']) ?></td>
                                     <td>
                                         <div class="d-flex gap-2 justify-content-center">
-                                            <a href="export_major_word.php?id=<?= h($m['id']) ?>" class="btn btn-success btn-sm">
+                                            <a href="major_export.php?id=<?= h($m['id']) ?>" class="btn btn-success btn-sm">
                                                 Xu&#7845;t PDF
                                             </a>
+                                            <!-- <a href="export_major_wordold.php?id=<?= h($m['id']) ?>" class="btn btn-success btn-sm">
+                                                Xu&#7845;t PDF old
+                                            </a> -->
                                             <form method="post" style="margin: 0;">
                                                 <button class="button danger button_del" name="delete" value="<?= h($m['id']) ?>">
                                                     Xóa

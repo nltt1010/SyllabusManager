@@ -809,7 +809,7 @@ function gatherJsonData() {
     // 1. In và kiểm tra các giá trị thuộc tính text/select cơ bản
     let basicData = {
         course_id: document.getElementById('courseSelect')?.value || '',
-        name: document.getElementById('courseName')?.value || '',
+        name: document.getElementById('courseName')?.value.toUpperCase() || '',
         code: document.getElementById('code')?.value || '',
         module_type: document.getElementsByName('module_type')[0]?.value || '',
         credits: document.getElementById('credits')?.value || 0,

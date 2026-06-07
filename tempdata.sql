@@ -23,6 +23,7 @@ DROP TABLE IF EXISTS `majors`;
 DROP TABLE IF EXISTS `assessment_forms`;
 DROP TABLE IF EXISTS `faculties_list`;
 DROP TABLE IF EXISTS `departments_list`;
+DROP TABLE IF EXISTS `module_departments`;
 
 CREATE TABLE `assessment_forms` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -457,4 +458,291 @@ INSERT INTO `books_catalog` (`id`, `title`, `editor`, `publisher`, `year`, `iden
 (9,'Giáo trình Chăm sóc nội khoa','Nguyễn Văn A','NXB Y học','2025', 9),
 (10,'Giáo trình Tin học ứng dụng y học','Nguyễn Văn A','NXB Y học','2025', 10);
 
+
+-- --- NGÀNH 1: Y KHOA (Đã có sẵn block cha 1, 2, 3) ---
+-- Khối con thuộc "Kiến thức cơ sở ngành Y" (id = 2)
+INSERT INTO `knowledge_blocks` (`id`, `major_id`, `name`, `parent_id`) VALUES
+(8, 1, 'Giải phẫu - Mô phôi chuyên sâu', 2),
+(9, 1, 'Sinh lý bệnh - Miễn dịch và Vi sinh', 2);
+-- Khối con thuộc "Kiến thức chuyên ngành Y khoa" (id = 3)
+INSERT INTO `knowledge_blocks` (`id`, `major_id`, `name`, `parent_id`) VALUES
+(10, 1, 'Khối các học phần Ngoại khoa', 3),
+(11, 1, 'Khối các học phần Sản - Nhi', 3),
+(12, 1, 'Khối các học phần Chuyên khoa lẻ', 3);
+
+-- --- NGÀNH 2: DƯỢC HỌC (Đã có sẵn block cha 4, 5) ---
+-- Khối con thuộc "Kiến thức cơ sở ngành Dược" (id = 4)
+INSERT INTO `knowledge_blocks` (`id`, `major_id`, `name`, `parent_id`) VALUES
+(13, 2, 'Sinh học ứng dụng và Dược liệu', 4),
+(14, 2, 'Hóa học chuyên ngành Dược', 4);
+-- Khối con thuộc "Kiến thức chuyên ngành Dược" (id = 5)
+INSERT INTO `knowledge_blocks` (`id`, `major_id`, `name`, `parent_id`) VALUES
+(15, 2, 'Dược lâm sàng và Điều trị học', 5),
+(16, 2, 'Công nghệ Dược và Kiểm nghiệm thuốc', 5),
+(17, 2, 'Kinh tế và Quản lý Dược', 5);
+
+-- --- NGÀNH 3: ĐIỀU DƯỠNG (Đã có sẵn block cha 6, 7) ---
+-- Khối con thuộc "Kiến thức cơ sở ngành Điều dưỡng" (id = 6)
+INSERT INTO `knowledge_blocks` (`id`, `major_id`, `name`, `parent_id`) VALUES
+(18, 3, 'Khoa học hành vi và Sức khỏe cộng đồng', 6),
+(19, 3, 'Kiến thức hỗ trợ điều trị', 6);
+-- Khối con thuộc "Kiến thức chuyên ngành Điều dưỡng" (id = 7)
+INSERT INTO `knowledge_blocks` (`id`, `major_id`, `name`, `parent_id`) VALUES
+(20, 3, 'Điều dưỡng chuyên sâu Ngoại - Sản - Nhi', 7),
+(21, 3, 'Điều dưỡng chuyên khoa và Hồi sức cấp cứu', 7),
+(22, 3, 'Quản lý và Nghiên cứu khoa học Điều dưỡng', 7);
+
+
+INSERT INTO `courses` (`id`, `major_id`, `block_id`, `code`, `name`, `total_hours`, `theory_hours`, `practical_hours`, `sort_order`) VALUES
+
+-- ==================== NGÀNH 1: Y KHOA (20 Học phần: ID 11 -> 30) ====================
+-- Thuộc khối giáo dục đại cương (id = 1)
+(11, 1, 1, 'MED011', 'Đạo đức Y học và Tâm lý y pháp', 30, 20, 10, 11),
+(12, 1, 1, 'MED012', 'Xác suất thống kê trong Y sinh', 45, 30, 15, 12),
+-- Thuộc khối cơ sở ngành - nhóm Giải phẫu & Mô phôi (id = 8)
+(13, 1, 8, 'MED013', 'Mô phôi học người', 45, 30, 15, 13),
+(14, 1, 8, 'MED014', 'Giải phẫu bệnh chuyên biệt', 60, 40, 20, 14),
+-- Thuộc khối cơ sở ngành - nhóm Sinh lý bệnh & Vi sinh (id = 9)
+(15, 1, 9, 'MED015', 'Sinh lý bệnh ứng dụng lâm sàng', 45, 30, 15, 15),
+(16, 1, 9, 'MED016', 'Vi sinh vật y học và Ký sinh trùng', 60, 40, 20, 16),
+(17, 1, 9, 'MED017', 'Miễn dịch học đại cương', 30, 20, 10, 17),
+(18, 1, 9, 'MED018', 'Dược lý học cơ sở Y khoa', 60, 45, 15, 18),
+-- Thuộc khối chuyên ngành - nhóm Ngoại khoa (id = 10)
+(19, 1, 10, 'MED019', 'Bệnh học Ngoại khoa toàn thân', 60, 45, 15, 19),
+(20, 1, 10, 'MED020', 'Phẫu thuật thực hành cơ bản', 45, 15, 30, 20),
+(21, 1, 10, 'MED021', 'Chấn thương chỉnh hình đại cương', 45, 30, 15, 21),
+-- Thuộc khối chuyên ngành - nhóm Sản - Nhi (id = 11)
+(22, 1, 11, 'MED022', 'Sản khoa và Phụ khoa lâm sàng', 60, 40, 20, 22),
+(23, 1, 11, 'MED023', 'Nhi khoa lý thuyết và Thực hành', 60, 40, 20, 23),
+(24, 1, 11, 'MED024', 'Sơ sinh học cơ bản', 30, 20, 10, 24),
+-- Thuộc khối chuyên ngành - nhóm Chuyên khoa lẻ (id = 12)
+(25, 1, 12, 'MED025', 'Tai Mũi Họng đại cương', 30, 20, 10, 25),
+(26, 1, 12, 'MED026', 'Răng Hàm Mặt cơ sở', 30, 20, 10, 26),
+(27, 1, 12, 'MED027', 'Mắt và Nhãn khoa lâm sàng', 30, 20, 10, 27),
+(28, 1, 12, 'MED028', 'Da liễu và Bệnh lây truyền qua đường tình dục', 30, 20, 10, 28),
+(29, 1, 12, 'MED029', 'Thần kinh học lâm sàng', 45, 30, 15, 29),
+(30, 1, 12, 'MED030', 'Tâm thần học và Sức khỏe tâm thần', 45, 30, 15, 30),
+
+-- ==================== NGÀNH 2: DƯỢC HỌC (20 Học phần: ID 31 -> 50) ====================
+-- Thuộc khối cơ sở ngành - nhóm Sinh học & Dược liệu (id = 13)
+(31, 2, 13, 'PHAR031', 'Thực vật dược phân loại', 45, 30, 15, 31),
+(32, 2, 13, 'PHAR032', 'Dược liệu học I', 60, 40, 20, 32),
+(33, 2, 13, 'PHAR032B', 'Dược liệu học II', 45, 30, 15, 33),
+(34, 2, 13, 'PHAR034', 'Sinh học phân tử và Di truyền', 30, 20, 10, 34),
+-- Thuộc khối cơ sở ngành - nhóm Hóa học (id = 14)
+(35, 2, 14, 'PHAR035', 'Hóa phân tích định lượng', 60, 30, 30, 35),
+(36, 2, 14, 'PHAR036', 'Hóa hữu cơ nâng cao ngành Dược', 45, 30, 15, 36),
+(37, 2, 14, 'PHAR037', 'Hóa sinh dược phẩm', 45, 30, 15, 37),
+(38, 2, 14, 'PHAR038', 'Độc chất học đại cương', 30, 20, 10, 38),
+-- Thuộc khối chuyên ngành - nhóm Dược lâm sàng (id = 15)
+(39, 2, 15, 'PHAR039', 'Dược lâm sàng nâng cao', 45, 30, 15, 39),
+(40, 2, 15, 'PHAR040', 'Dược động học lâm sàng', 30, 20, 10, 40),
+(41, 2, 15, 'PHAR041', 'Dược lý bệnh học và Điều trị học I', 60, 45, 15, 41),
+(42, 2, 15, 'PHAR042', 'Dược lý bệnh học và Điều trị học II', 45, 30, 15, 42),
+-- Thuộc khối chuyên ngành - nhóm Công nghệ & Kiểm nghiệm (id = 16)
+(43, 2, 16, 'PHAR043', 'Bào chế và Sinh dược học I', 60, 40, 20, 43),
+(44, 2, 16, 'PHAR044', 'Bào chế và Sinh dược học II', 45, 30, 15, 44),
+(45, 2, 16, 'PHAR045', 'Kiểm nghiệm thuốc và Mỹ phẩm', 60, 30, 30, 45),
+(46, 2, 16, 'PHAR046', 'Công nghệ sinh học trong Sản xuất thuốc', 45, 30, 15, 46),
+-- Thuộc khối chuyên ngành - nhóm Kinh tế & Quản lý (id = 17)
+(47, 2, 17, 'PHAR047', 'Kinh tế Dược đại cương', 30, 20, 10, 47),
+(48, 2, 17, 'PHAR048', 'Pháp luật và Thực hành tốt Nhà thuốc (GPP)', 30, 30, 0, 48),
+(49, 2, 17, 'PHAR049', 'Marketing Dược và Kỹ năng giao tiếp', 45, 30, 15, 49),
+(50, 2, 17, 'PHAR050', 'Quản trị chuỗi cung ứng dược phẩm', 45, 30, 15, 50),
+
+-- ==================== NGÀNH 3: ĐIỀU DƯỠNG (20 Học phần: ID 51 -> 70) ====================
+-- Thuộc khối cơ sở ngành - nhóm Khoa học hành vi (id = 18)
+(51, 3, 18, 'NUR051', 'Tâm lý học và Giao tiếp trong Điều dưỡng', 30, 20, 10, 51),
+(52, 3, 18, 'NUR052', 'Giáo dục sức khỏe và Thực hành nâng cao', 30, 20, 10, 52),
+(53, 3, 18, 'NUR053', 'Dịch tễ học cơ bản cho Điều dưỡng', 30, 20, 10, 53),
+(54, 3, 18, 'NUR054', 'Điều dưỡng môi trường và Kiểm soát bệnh', 45, 30, 15, 54),
+-- Thuộc khối cơ sở ngành - nhóm Hỗ trợ điều trị (id = 19)
+(55, 3, 19, 'NUR055', 'Dược lý đại cương cho Điều dưỡng', 30, 20, 10, 55),
+(56, 3, 19, 'NUR056', 'Dinh dưỡng và Tiết chế lâm sàng', 30, 20, 10, 56),
+(57, 3, 19, 'NUR057', 'Xét nghiệm cận lâm sàng ứng dụng', 30, 20, 10, 57),
+(58, 3, 19, 'NUR058', 'Vi sinh - Ký sinh trùng cơ sở', 30, 20, 10, 58),
+-- Thuộc khối chuyên ngành - nhóm Ngoại, Sản, Nhi (id = 20)
+(59, 3, 20, 'NUR059', 'Chăm sóc người bệnh Ngoại khoa toàn diện', 60, 30, 30, 59),
+(60, 3, 20, 'NUR060', 'Chăm sóc sức khỏe Phụ nữ và Bà mẹ', 45, 20, 25, 60),
+(61, 3, 20, 'NUR061', 'Chăm sóc sức khỏe Trẻ em và Sơ sinh', 45, 20, 25, 61),
+-- Thuộc khối chuyên ngành - nhóm Chuyên khoa & Hồi sức (id = 21)
+(62, 3, 21, 'NUR062', 'Điều dưỡng Hồi sức cấp cứu và Chống độc', 60, 30, 30, 62),
+(63, 3, 21, 'NUR063', 'Chăm sóc người bệnh chuyên khoa lẻ', 45, 25, 20, 63),
+(64, 3, 21, 'NUR064', 'Điều dưỡng chăm sóc Người cao tuổi', 30, 20, 10, 64),
+(65, 3, 21, 'NUR065', 'Chăm sóc giảm nhẹ và Bệnh nan y', 30, 20, 10, 65),
+(66, 3, 21, 'NUR066', 'Điều dưỡng Sức khỏe Tâm thần', 30, 20, 10, 66),
+-- Thuộc khối chuyên ngành - nhóm Quản lý & NCKH (id = 22)
+(67, 3, 22, 'NUR067', 'Quản lý Điều dưỡng và Tổ chức bệnh viện', 30, 20, 10, 67),
+(68, 3, 22, 'NUR068', 'Nghiên cứu khoa học và Thực hành dựa vào bằng chứng', 45, 25, 20, 68),
+(69, 3, 22, 'NUR069', 'Pháp luật và Đạo đức nghề nghiệp Điều dưỡng', 30, 30, 0, 69),
+(70, 3, 22, 'NUR070', 'Lãnh đạo và Kỹ năng làm việc nhóm', 30, 20, 10, 70);
+
+-- =================================================================================
+-- PHẦN 1: BỔ SUNG ĐỦ MÔN HỌC (COURSES) ĐỂ MỖI NGÀNH CÓ ĐỦ 30 MÔN (ID TỪ 71 ĐẾN 100)
+-- =================================================================================
+
+INSERT INTO `courses` (`id`, `major_id`, `block_id`, `code`, `name`, `total_hours`, `theory_hours`, `practical_hours`, `sort_order`) VALUES
+-- Bổ sung 10 môn cho Ngành 1: Y khoa (Đã có id 1..4, 10..30 -> Thêm id 71..80)
+(71, 1, 1, 'MED071', 'Tiếng Anh chuyên ngành Y khoa', 45, 30, 15, 71),
+(72, 1, 1, 'MED072', 'Kỹ năng giao tiếp trong y tế', 30, 20, 10, 72),
+(73, 1, 2, 'MED073', 'Lịch sử Y học thế giới và Việt Nam', 30, 30, 0, 73),
+(74, 1, 2, 'MED074', 'Ứng dụng trí tuệ nhân tạo trong Y tế', 45, 15, 30, 74),
+(75, 1, 3, 'MED075', 'Dinh dưỡng tiết chế bệnh lý', 30, 20, 10, 75),
+(76, 1, 3, 'MED076', 'Y học hạt nhân cơ bản', 30, 20, 10, 76),
+(77, 1, 10, 'MED077', 'Phẫu thuật nội soi đại cương', 45, 15, 30, 77),
+(78, 1, 11, 'MED078', 'Sức khỏe sinh sản vị thành niên', 30, 20, 10, 78),
+(79, 1, 12, 'MED079', 'Ung thư học lâm sàng đại cương', 45, 30, 15, 79),
+(80, 1, 12, 'MED080', 'Y học gia đình và Chăm sóc ban đầu', 45, 30, 15, 80),
+
+-- Bổ sung 10 môn cho Ngành 2: Dược học (Đã có id 5..7, 31..50 -> Thêm id 81..90)
+(81, 2, 4, 'PHAR081', 'Pháp chế Dược nâng cao', 30, 30, 0, 81),
+(82, 2, 4, 'PHAR082', 'Phương pháp nghiên cứu khoa học Dược', 45, 30, 15, 82),
+(83, 2, 13, 'PHAR083', 'Dược liệu biển và Động vật làm thuốc', 30, 20, 10, 83),
+(84, 2, 14, 'PHAR084', 'Hóa học các hợp chất thiên nhiên', 45, 30, 15, 84),
+(85, 2, 15, 'PHAR085', 'Thông tin thuốc và Cảnh giác Dược', 45, 30, 15, 85),
+(86, 2, 15, 'PHAR086', 'Độc học lâm sàng nâng cao', 30, 20, 10, 86),
+(87, 2, 16, 'PHAR087', 'Đảm bảo chất lượng trong sản xuất thuốc', 45, 30, 15, 87),
+(88, 2, 16, 'PHAR088', 'Mỹ phẩm học và Thực phẩm chức năng', 45, 30, 15, 88),
+(89, 2, 17, 'PHAR089', 'Quản trị doanh nghiệp Dược', 30, 20, 10, 89),
+(90, 2, 17, 'PHAR090', 'Dược xã hội học', 30, 30, 0, 90),
+
+-- Bổ sung 10 môn cho Ngành 3: Điều dưỡng (Đã có id 8..9, 51..70 -> Thêm id 91..100)
+(91, 3, 6, 'NUR091', 'Đạo đức và Luật pháp trong thực hành Điều dưỡng', 30, 30, 0, 91),
+(92, 3, 6, 'NUR092', 'Lịch sử và Xu hướng phát triển Điều dưỡng', 30, 30, 0, 92),
+(93, 3, 18, 'NUR093', 'Điều dưỡng dựa vào bằng chứng', 45, 30, 15, 93),
+(94, 3, 19, 'NUR094', 'Giải phẫu sinh lý ứng dụng trong Điều dưỡng', 45, 30, 15, 94),
+(95, 3, 20, 'NUR095', 'Chăm sóc toàn diện người bệnh bỏng', 30, 20, 10, 95),
+(96, 3, 20, 'NUR096', 'Chăm sóc sức khỏe phụ nữ mãn kinh', 30, 20, 10, 96),
+(97, 3, 21, 'NUR097', 'Điều dưỡng kiểm soát nhiễm khuẩn bệnh viện', 45, 20, 25, 97),
+(98, 3, 21, 'NUR098', 'Quản lý vết thương và Chăm sóc giảm nhẹ', 45, 20, 25, 98),
+(99, 3, 22, 'NUR099', 'Ứng dụng Tin học trong Quản lý Điều dưỡng', 45, 15, 30, 99),
+(100, 3, 22, 'NUR100', 'Kiểm định và Đảm bảo chất lượng Điều dưỡng', 30, 20, 10, 100);
+
+
+-- =================================================================================
+-- PHẦN 2: CHÈN DỮ LIỆU ĐỦ 30 HỌC PHẦN (MODULES) CHO MỖI NGÀNH, ĐÚNG TRƯỜNG 'type'
+-- Phân chia: 10 Bắt buộc, 10 Tự chọn, 10 Điều kiện cho từng ngành riêng biệt.
+-- =================================================================================
+
+-- ---------------------------------------------------------------------------------
+-- 2.1 NGÀNH 1: Y KHOA (Đủ 30 Học phần: Gồm ID gốc 1,2,3,4,10 và ID mới)
+-- ---------------------------------------------------------------------------------
+INSERT INTO `modules` (`id`, `course_id`, `code`, `name`, `type`, `credits`, `credits_theory`, `credits_practice`, `total_hours`, `theory_hours`, `practical_hours`, `self_study_hours`, `target_programs`, `expected_semester`, `expected_year`, `department_in_charge`, `faculty_in_charge`, `grading_scale`) VALUES
+-- [Y KHOA] 10 Học phần Bắt buộc
+(11, 11, 'MED011', 'Đạo đức Y học và Tâm lý y pháp', 'Bắt buộc', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Tâm thần', 'Khoa Y', 'Thang điểm 10'),
+(12, 12, 'MED012', 'Xác suất thống kê trong Y sinh', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Trung tâm Công nghệ thông tin', 'Khoa Khoa học cơ bản', 'Thang điểm 10'),
+(13, 13, 'MED013', 'Mô phôi học người', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Giải phẫu', 'Khoa Y', 'Thang điểm 10'),
+(14, 14, 'MED014', 'Giải phẫu bệnh chuyên biệt', 'Bắt buộc', 4, 3, 1, 60, 40, 20, 90, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Bệnh học', 'Khoa Y', 'Thang điểm 10'),
+(15, 15, 'MED015', 'Sinh lý bệnh ứng dụng lâm sàng', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Sinh lý', 'Khoa Y', 'Thang điểm 10'),
+(16, 16, 'MED016', 'Vi sinh vật y học và Ký sinh trùng', 'Bắt buộc', 4, 3, 1, 60, 40, 20, 90, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Bệnh học', 'Khoa Y', 'Thang điểm 10'),
+(17, 19, 'MED019', 'Bệnh học Ngoại khoa toàn thân', 'Bắt buộc', 4, 3, 1, 60, 45, 15, 90, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Nội', 'Khoa Y', 'Thang điểm 10'),
+(18, 22, 'MED022', 'Sản khoa và Phụ khoa lâm sàng', 'Bắt buộc', 4, 3, 1, 60, 40, 20, 90, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Nội', 'Khoa Y', 'Thang điểm 10'),
+(19, 23, 'MED023', 'Nhi khoa lý thuyết và Thực hành', 'Bắt buộc', 4, 3, 1, 60, 40, 20, 90, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Nội', 'Khoa Y', 'Thang điểm 10'),
+(20, 29, 'MED029', 'Thần kinh học lâm sàng', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Nội', 'Khoa Y', 'Thang điểm 10'),
+
+-- [Y KHOA] 10 Học phần Tự chọn
+(21, 17, 'MED017', 'Miễn dịch học đại cương', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Sinh lý', 'Khoa Y', 'Thang điểm 10'),
+(22, 18, 'MED018', 'Dược lý học cơ sở Y khoa', 'Tự chọn', 4, 3, 1, 60, 45, 15, 90, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Dược lý', 'Khoa Dược', 'Thang điểm 10'),
+(23, 21, 'MED021', 'Chấn thương chỉnh hình đại cương', 'Tự chọn', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Nội', 'Khoa Y', 'Thang điểm 10'),
+(24, 25, 'MED025', 'Tai Mũi Họng đại cương', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Nội', 'Khoa Y', 'Thang điểm 10'),
+(25, 26, 'MED026', 'Răng Hàm Mặt cơ sở', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Nội', 'Khoa Y', 'Thang điểm 10'),
+(26, 75, 'MED075', 'Dinh dưỡng tiết chế bệnh lý', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Sinh lý', 'Khoa Y', 'Thang điểm 10'),
+(27, 76, 'MED076', 'Y học hạt nhân cơ bản', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Bệnh học', 'Khoa Y', 'Thang điểm 10'),
+(28, 77, 'MED077', 'Phẫu thuật nội soi đại cương', 'Tự chọn', 3, 1, 2, 45, 15, 30, 60, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Nội', 'Khoa Y', 'Thang điểm 10'),
+(29, 78, 'MED078', 'Sức khỏe sinh sản vị thành niên', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Nội', 'Khoa Y', 'Thang điểm 10'),
+(30, 79, 'MED079', 'Ung thư học lâm sàng đại cương', 'Tự chọn', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Bệnh học', 'Khoa Y', 'Thang điểm 10'),
+
+-- [Y KHOA] 10 Học phần Điều kiện
+(31, 20, 'MED020', 'Phẫu thuật thực hành cơ bản', 'Điều kiện', 3, 1, 2, 45, 15, 30, 60, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Giải phẫu', 'Khoa Y', 'Thang điểm 10'),
+(32, 24, 'MED024', 'Sơ sinh học cơ bản', 'Điều kiện', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Nội', 'Khoa Y', 'Thang điểm 10'),
+(33, 27, 'MED027', 'Mắt và Nhãn khoa lâm sàng', 'Điều kiện', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Nội', 'Khoa Y', 'Thang điểm 10'),
+(34, 28, 'MED028', 'Da liễu và Bệnh lây truyền qua đường tình dục', 'Điều kiện', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Bệnh học', 'Khoa Y', 'Thang điểm 10'),
+(35, 30, 'MED030', 'Tâm thần học và Sức khỏe tâm thần', 'Điều kiện', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Tâm thần', 'Khoa Y', 'Thang điểm 10'),
+(36, 71, 'MED071', 'Tiếng Anh chuyên ngành Y khoa', 'Điều kiện', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Ngoại ngữ', 'Khoa Khoa học cơ bản', 'Thang điểm 10'),
+(37, 72, 'MED072', 'Kỹ năng giao tiếp trong y tế', 'Điều kiện', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Tâm thần', 'Khoa Y', 'Thang điểm 10'),
+(38, 73, 'MED073', 'Lịch sử Y học thế giới và Việt Nam', 'Điều kiện', 2, 2, 0, 30, 30, 0, 30, 'Sinh viên Y khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Lý luận chính trị', 'Khoa Khoa học cơ bản', 'Thang điểm 10'),
+(39, 74, 'MED074', 'Ứng dụng trí tuệ nhân tạo trong Y tế', 'Điều kiện', 3, 1, 2, 45, 15, 30, 60, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Trung tâm Công nghệ thông tin', 'Khoa Khoa học cơ bản', 'Thang điểm 10'),
+(40, 80, 'MED080', 'Y học gia đình và Chăm sóc ban đầu', 'Điều kiện', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Y khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Nội', 'Khoa Y', 'Thang điểm 10'),
+
+
+-- ---------------------------------------------------------------------------------
+-- 2.2 NGÀNH 2: DƯỢC HỌC (Đủ 30 Học phần: Gồm ID gốc 5,6,7 và ID mới)
+-- ---------------------------------------------------------------------------------
+-- [DƯỢC HỌC] 10 Học phần Bắt buộc
+(41, 31, 'PHAR031', 'Thực vật dược phân loại', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Dược liệu', 'Khoa Dược', 'Thang điểm 10'),
+(42, 32, 'PHAR032', 'Dược liệu học I', 'Bắt buộc', 4, 3, 1, 60, 40, 20, 90, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Dược liệu', 'Khoa Dược', 'Thang điểm 10'),
+(43, 33, 'PHAR033', 'Dược liệu học II', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Dược liệu', 'Khoa Dược', 'Thang điểm 10'),
+(44, 35, 'PHAR035', 'Hóa phân tích định lượng', 'Bắt buộc', 4, 2, 2, 60, 30, 30, 90, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Hóa dược', 'Khoa Dược', 'Thang điểm 10'),
+(45, 36, 'PHAR036', 'Hóa hữu cơ nâng cao ngành Dược', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Hóa dược', 'Khoa Dược', 'Thang điểm 10'),
+(46, 41, 'PHAR041', 'Dược lý bệnh học và Điều trị học I', 'Bắt buộc', 4, 3, 1, 60, 45, 15, 90, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Dược lý', 'Khoa Dược', 'Thang điểm 10'),
+(47, 42, 'PHAR042', 'Dược lý bệnh học và Điều trị học II', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Dược lý', 'Khoa Dược', 'Thang điểm 10'),
+(48, 43, 'PHAR043', 'Bào chế và Sinh dược học I', 'Bắt buộc', 4, 3, 1, 60, 40, 20, 90, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Hóa dược', 'Khoa Dược', 'Thang điểm 10'),
+(49, 44, 'PHAR044', 'Bào chế và Sinh dược học II', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Hóa dược', 'Khoa Dược', 'Thang điểm 10'),
+(50, 45, 'PHAR045', 'Kiểm nghiệm thuốc và Mỹ phẩm', 'Bắt buộc', 4, 2, 2, 60, 30, 30, 90, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Hóa dược', 'Khoa Dược', 'Thang điểm 10'),
+
+-- [DƯỢC HỌC] 10 Học phần Tự chọn
+(51, 34, 'PHAR034', 'Sinh học phân tử và Di truyền', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Dược liệu', 'Khoa Dược', 'Thang điểm 10'),
+(52, 37, 'PHAR037', 'Hóa sinh dược phẩm', 'Tự chọn', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Hóa dược', 'Khoa Dược', 'Thang điểm 10'),
+(53, 39, 'PHAR039', 'Dược lâm sàng nâng cao', 'Tự chọn', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Dược lý', 'Khoa Dược', 'Thang điểm 10'),
+(54, 46, 'PHAR046', 'Công nghệ sinh học trong Sản xuất thuốc', 'Tự chọn', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Hóa dược', 'Khoa Dược', 'Thang điểm 10'),
+(55, 47, 'PHAR047', 'Kinh tế Dược đại cương', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Quản lý Dược', 'Khoa Dược', 'Thang điểm 10'),
+(56, 49, 'PHAR049', 'Marketing Dược và Kỹ năng giao tiếp', 'Tự chọn', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Quản lý Dược', 'Khoa Dược', 'Thang điểm 10'),
+(57, 83, 'PHAR083', 'Dược liệu biển và Động vật làm thuốc', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Dược liệu', 'Khoa Dược', 'Thang điểm 10'),
+(58, 84, 'PHAR084', 'Hóa học các hợp chất thiên nhiên', 'Tự chọn', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Hóa dược', 'Khoa Dược', 'Thang điểm 10'),
+(59, 88, 'PHAR088', 'Mỹ phẩm học và Thực phẩm chức năng', 'Tự chọn', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Hóa dược', 'Khoa Dược', 'Thang điểm 10'),
+(60, 89, 'PHAR089', 'Quản trị doanh nghiệp Dược', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Quản lý Dược', 'Khoa Dược', 'Thang điểm 10'),
+
+-- [DƯỢC HỌC] 10 Học phần Điều kiện
+(61, 38, 'PHAR038', 'Độc chất học đại cương', 'Điều kiện', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Dược lý', 'Khoa Dược', 'Thang điểm 10'),
+(62, 40, 'PHAR040', 'Dược động học lâm sàng', 'Điều kiện', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Dược lý', 'Khoa Dược', 'Thang điểm 10'),
+(63, 48, 'PHAR048', 'Pháp luật và Thực hành tốt Nhà thuốc (GPP)', 'Điều kiện', 2, 2, 0, 30, 30, 0, 30, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Quản lý Dược', 'Khoa Dược', 'Thang điểm 10'),
+(64, 50, 'PHAR050', 'Quản trị chuỗi cung ứng dược phẩm', 'Điều kiện', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Quản lý Dược', 'Khoa Dược', 'Thang điểm 10'),
+(65, 81, 'PHAR081', 'Pháp chế Dược nâng cao', 'Điều kiện', 2, 2, 0, 30, 30, 0, 30, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Quản lý Dược', 'Khoa Dược', 'Thang điểm 10'),
+(66, 82, 'PHAR082', 'Phương pháp nghiên cứu khoa học Dược', 'Điều kiện', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Quản lý Dược', 'Khoa Dược', 'Thang điểm 10'),
+(67, 85, 'PHAR085', 'Thông tin thuốc và Cảnh giác Dược', 'Điều kiện', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Dược lý', 'Khoa Dược', 'Thang điểm 10'),
+(68, 86, 'PHAR086', 'Độc học lâm sàng nâng cao', 'Điều kiện', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Dược lý', 'Khoa Dược', 'Thang điểm 10'),
+(69, 87, 'PHAR087', 'Đảm bảo chất lượng trong sản xuất thuốc', 'Điều kiện', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược khoa', 'Học kỳ I', '2026-2027', 'Bộ môn Hóa dược', 'Khoa Dược', 'Thang điểm 10'),
+(70, 90, 'PHAR090', 'Dược xã hội học', 'Điều kiện', 2, 2, 0, 30, 30, 0, 30, 'Sinh viên Dược khoa', 'Học kỳ II', '2026-2027', 'Bộ môn Quản lý Dược', 'Khoa Dược', 'Thang điểm 10'),
+
+
+-- ---------------------------------------------------------------------------------
+-- 2.3 NGÀNH 3: ĐIỀU DƯỠNG (Đủ 30 Học phần: Gồm ID gốc 8,9 và ID mới)
+-- ---------------------------------------------------------------------------------
+-- [ĐIỀU DƯỠNG] 10 Học phần Bắt buộc
+(71, 51, 'NUR051', 'Tâm lý học và Giao tiếp trong Điều dưỡng', 'Bắt buộc', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(72, 52, 'NUR052', 'Giáo dục sức khỏe và Thực hành nâng cao', 'Bắt buộc', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(73, 54, 'NUR054', 'Điều dưỡng môi trường và Kiểm soát bệnh', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(74, 59, 'NUR059', 'Chăm sóc người bệnh Ngoại khoa toàn diện', 'Bắt buộc', 4, 2, 2, 60, 30, 30, 90, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng nội', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(75, 60, 'NUR060', 'Chăm sóc sức khỏe Phụ nữ và Bà mẹ', 'Bắt buộc', 3, 1, 2, 45, 20, 25, 60, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng nội', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(76, 61, 'NUR061', 'Chăm sóc sức khỏe Trẻ em và Sơ sinh', 'Bắt buộc', 3, 1, 2, 45, 20, 25, 60, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng nội', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(77, 62, 'NUR062', 'Điều dưỡng Hồi sức cấp cứu và Chống độc', 'Bắt buộc', 4, 2, 2, 60, 30, 30, 90, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng nội', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(78, 63, 'NUR063', 'Chăm sóc người bệnh chuyên khoa lẻ', 'Bắt buộc', 3, 1, 2, 45, 25, 20, 60, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng nội', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(79, 66, 'NUR066', 'Điều dưỡng Sức khỏe Tâm thần', 'Bắt buộc', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(80, 67, 'NUR067', 'Quản lý Điều dưỡng và Tổ chức bệnh viện', 'Bắt buộc', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+
+-- [ĐIỀU DƯỠNG] 10 Học phần Tự chọn
+(81, 53, 'NUR053', 'Dịch tễ học cơ bản cho Điều dưỡng', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(82, 56, 'NUR056', 'Dinh dưỡng và Tiết chế lâm sàng', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Sinh lý', 'Khoa Y', 'Thang điểm 10'),
+(83, 57, 'NUR057', 'Xét nghiệm cận lâm sàng ứng dụng', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Bệnh học', 'Khoa Y', 'Thang điểm 10'),
+(84, 64, 'NUR064', 'Điều dưỡng chăm sóc Người cao tuổi', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng nội', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(85, 65, 'NUR065', 'Chăm sóc giảm nhẹ và Bệnh nan y', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng nội', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(86, 95, 'NUR095', 'Chăm sóc toàn diện người bệnh bỏng', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng nội', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(87, 96, 'NUR096', 'Chăm sóc sức khỏe phụ nữ mãn kinh', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng nội', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(88, 97, 'NUR097', 'Điều dưỡng kiểm soát nhiễm khuẩn bệnh viện', 'Tự chọn', 3, 1, 2, 45, 20, 25, 60, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(89, 98, 'NUR098', 'Quản lý vết thương và Chăm sóc giảm nhẹ', 'Tự chọn', 3, 1, 2, 45, 20, 25, 60, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng nội', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(90, 99, 'NUR099', 'Ứng dụng Tin học trong Quản lý Điều dưỡng', 'Tự chọn', 3, 1, 2, 45, 15, 30, 60, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Trung tâm Công nghệ thông tin', 'Khoa Khoa học cơ bản', 'Thang điểm 10'),
+
+-- [ĐIỀU DƯỠNG] 10 Học phần Điều kiện
+(91, 55, 'NUR055', 'Dược lý đại cương cho Điều dưỡng', 'Điều kiện', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Dược lý', 'Khoa Dược', 'Thang điểm 10'),
+(92, 58, 'NUR058', 'Vi sinh - Ký sinh trùng cơ sở', 'Điều kiện', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Bệnh học', 'Khoa Y', 'Thang điểm 10'),
+(93, 68, 'NUR068', 'Nghiên cứu khoa học và Thực hành dựa vào bằng chứng', 'Điều kiện', 3, 2, 1, 45, 25, 20, 60, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(94, 69, 'NUR069', 'Pháp luật và Đạo đức nghề nghiệp Điều dưỡng', 'Điều kiện', 2, 2, 0, 30, 30, 0, 30, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(95, 70, 'NUR070', 'Lãnh đạo và Kỹ năng làm việc nhóm', 'Điều kiện', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(96, 91, 'NUR091', 'Đạo đức và Luật pháp trong thực hành Điều dưỡng', 'Điều kiện', 2, 2, 0, 30, 30, 0, 30, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(97, 92, 'NUR092', 'Lịch sử và Xu hướng phát triển Điều dưỡng', 'Điều kiện', 2, 2, 0, 30, 30, 0, 30, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(98, 93, 'NUR093', 'Điều dưỡng dựa vào bằng chứng', 'Điều kiện', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(99, 94, 'NUR094', 'Giải phẫu sinh lý ứng dụng trong Điều dưỡng', 'Điều kiện', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
+(100, 100, 'NUR100', 'Kiểm định và Đảm bảo chất lượng Điều dưỡng', 'Điều kiện', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10');
+
 SET FOREIGN_KEY_CHECKS = 1;
+
