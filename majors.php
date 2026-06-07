@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Fetch majors
-$majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
+$majors = $pdo->query('SELECT * FROM majors ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!doctype html>

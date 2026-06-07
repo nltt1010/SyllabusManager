@@ -57,13 +57,14 @@ try {
     }
 
     // Nạp lại danh sách dữ liệu hiển thị lên giao diện Table công khai
-    $majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
+    $majors = $pdo->query('SELECT * FROM majors ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
     $blocks = $pdo->query('SELECT * FROM knowledge_blocks ORDER BY major_id')->fetchAll(PDO::FETCH_ASSOC);
     $courses = $pdo->query(
         'SELECT c.*, m.name as major_name, b.name as block_name FROM courses c ' .
         'LEFT JOIN majors m ON c.major_id = m.id ' .
         'LEFT JOIN knowledge_blocks b ON c.block_id = b.id ' .
-        'ORDER BY m.name, c.sort_order, c.code'
+        // 'ORDER BY m.name, c.sort_order, c.code'
+        'ORDER BY c.id'
     )->fetchAll(PDO::FETCH_ASSOC);
 
 } catch (PDOException $e) {
@@ -321,6 +322,6 @@ try {
             });
         }
     </script>
-    <script src="./assistant.js"></script>
+    <!-- <script src="./assistant.js"></script> -->
 </body>
 </html>

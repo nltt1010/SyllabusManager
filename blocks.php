@@ -62,7 +62,8 @@ $blocks = $pdo->query(
     'SELECT b.*, m.name as major_name, p.name as parent_name FROM knowledge_blocks b ' .
     'JOIN majors m ON b.major_id = m.id ' .
     'LEFT JOIN knowledge_blocks p ON b.parent_id = p.id ' .
-    'ORDER BY m.name, b.parent_id, b.name'
+    // 'ORDER BY m.name, b.parent_id, b.name'
+    'ORDER BY b.id'
 )->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!doctype html>
