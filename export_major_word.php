@@ -298,7 +298,10 @@ function buildWordDocument(): array
 {
     $phpWord = new PhpWord();
     $phpWord->getSettings()->setThemeFontLang(new Language('vi-VN'));
-    $phpWord->getSettings()->setUpdateFields(true);
+    // The export already updates TOC/page fields through Word automation.
+    // Leaving updateFields enabled makes Word recalculate the layout again
+    // when someone opens the file on another machine, which causes drift.
+    $phpWord->getSettings()->setUpdateFields(false);
     Settings::setOutputEscapingEnabled(true);
     Settings::setDefaultFontName('Times New Roman');
     Settings::setDefaultFontSize(12);
@@ -899,8 +902,12 @@ function normalizeTocStylesInDocx(string $documentPath, string $fontName, int $f
         $xpath = new \DOMXPath($document);
         $xpath->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
 
-        foreach (['TOC10', 'TOC20'] as $styleId) {
-            $style = $xpath->query(sprintf('//w:style[@w:styleId="%s"]', $styleId))->item(0);
+        $tocStyles = $xpath->query('//w:style[starts-with(@w:styleId, "TOC")]');
+        if ($tocStyles === false) {
+            return;
+        }
+
+        foreach ($tocStyles as $style) {
             if (!$style instanceof \DOMElement) {
                 continue;
             }
