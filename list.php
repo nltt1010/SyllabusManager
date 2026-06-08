@@ -25,7 +25,15 @@ require 'db.php';
 <body>
     <div class="container">
         <p><a href="index.php">Tạo học phần mới</a></p>
-         <h2 class="text-center main-title">Danh sách học phần</h2>
+        <h2 class="text-center main-title">Danh sách học phần</h2>
+        <div>
+                    <input
+                        type="text"
+                        id="searchList"
+                        class="search_input"
+                        placeholder="Tìm kiếm ..."
+                    />
+                </div>
 
         <?php
         $stmt = $pdo->query(
@@ -37,6 +45,7 @@ require 'db.php';
             echo '<p>Chưa có học phần nào.</p>';
         } else {
             echo '<table class="table">';
+            echo '<thead>';
             echo '<tr>';
             echo '<th>STT</th>';
             echo '<th style="width: 15%;">Mã học phần</th>';
@@ -45,7 +54,9 @@ require 'db.php';
             echo '<th style="width: 15%;">Ngày tạo</th>';
             echo '<th style="width: 10%;">Thao tác</th>';
             echo '</tr>';
+            echo '</thead>';
 
+            echo '<tbody id="listTable">';            
             $stt = 0;
             foreach ($rows as $r) {
                 $stt++;
@@ -58,9 +69,30 @@ require 'db.php';
                 echo '<td><a href="view.php?id=' . h($r['id']) . '&edit=1" class="btn-link">Chi tiết</a></td>';
                 echo '</tr>';
             }
+            echo '</tbody>';  
             echo '</table>';
         }
         ?>
     </div>
+
+    <script>
+        const searchInput = document.getElementById('searchList');
+        searchInput.addEventListener('keyup', function() {
+            const keyword = this.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('#listTable tr');
+            rows.forEach(row => {
+                const ma = row.children[1]?.textContent.toLowerCase() || '';
+                const ten = row.children[2]?.textContent.toLowerCase() || '';
+                const ngay = row.children[3]?.textContent.toLowerCase() || '';
+                const searchText = `${ma} ${ten} ${ngay}`;
+                
+                if (searchText.includes(keyword)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        })
+    </script>
 </body>
 </html>

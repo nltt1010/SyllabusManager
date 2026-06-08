@@ -127,30 +127,42 @@ $blocks = $pdo->query(
 
         <div class="section">
             <div class="section-title">Danh sách khối</div>
+            <div>
+                <input
+                    type="text"
+                    id="searchBlock"
+                    class="search_input"
+                    placeholder="Tìm kiếm ..."
+                />
+            </div>
             <?php if ($blocks): ?>
-                <table class="table">
-                    <tr>
-                        <th>ID</th>
-                        <th>Ngành</th>
-                        <th>Tên</th>
-                        <th>Thuộc khối</th>
-                        <th></th>
-                    </tr>
-                    <?php foreach ($blocks as $b): ?>
+                <table class="table" >
+                    <thead>
                         <tr>
-                            <td><?= h($b['id']) ?></td>
-                            <td><?= h($b['major_name']) ?></td>
-                            <td><?= h($b['name']) ?></td>
-                            <td><?= h($b['parent_name'] ?: '') ?></td>
-                            <td>
-                                <form method="post" style="margin: 0;">
-                                    <button class="button secondary" name="delete" value="<?= h($b['id']) ?>">
-                                        Xóa
-                                    </button>
-                                </form>
-                            </td>
+                            <th>ID</th>
+                            <th>Ngành</th>
+                            <th>Tên</th>
+                            <th>Thuộc khối</th>
+                            <th></th>
                         </tr>
-                    <?php endforeach; ?>
+                    </thead>
+                    <tbody id="blockTable">
+                        <?php foreach ($blocks as $b): ?>
+                            <tr>
+                                <td><?= h($b['id']) ?></td>
+                                <td><?= h($b['major_name']) ?></td>
+                                <td><?= h($b['name']) ?></td>
+                                <td><?= h($b['parent_name'] ?: '') ?></td>
+                                <td>
+                                    <form method="post" style="margin: 0;">
+                                        <button class="button secondary" name="delete" value="<?= h($b['id']) ?>">
+                                            Xóa
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
                 </table>
             <?php else: ?>
                 <p>Chưa có khối kiến thức.</p>
@@ -187,6 +199,27 @@ $blocks = $pdo->query(
 
         majorSelect.addEventListener('change', filterParentBlocks);
         filterParentBlocks();
+    </script>
+
+    <script>
+        const searchInput = document.getElementById('searchBlock');
+        searchInput.addEventListener('keyup', function() {
+            const keyword = this.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('#blockTable tr');
+            
+            rows.forEach(row => {
+                const nganh = row.children[1]?.textContent.toLowerCase() || '';
+                const ten = row.children[2]?.textContent.toLowerCase() || '';
+                const thuocKhoi = row.children[3]?.textContent.toLowerCase() || '';
+                const searchText = `${nganh} ${ten} ${thuocKhoi}`;
+
+                if (searchText.includes(keyword)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        })
     </script>
 </body>
 </html>

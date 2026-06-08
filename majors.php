@@ -100,7 +100,7 @@ $majors = $pdo->query('SELECT * FROM majors ORDER BY id')->fetchAll(PDO::FETCH_A
 <script>
     const searchInput = document.getElementById('searchMajor');
     searchInput.addEventListener('keyup', function() {
-        const keyword = this.value.toLowerCase();
+        const keyword = this.value.toLowerCase().trim();
         const rows = document.querySelectorAll('#majorTable tr');
         rows.forEach(row => {
 

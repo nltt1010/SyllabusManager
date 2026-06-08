@@ -160,7 +160,18 @@ try {
 
         <div class="section">
             <div class="section-title">Danh sách học phần</div>
-            <p><button class="button" onclick="window.print()">In</button></p>
+            <div class="d-flex align-items-center">
+                <p class="m-2"><button class="button" onclick="window.print()">In</button></p>
+
+                <div>
+                    <input
+                        type="text"
+                        id="searchCourses"
+                        class="search_input"
+                        placeholder="Tìm kiếm ..."
+                    />
+                </div>
+            </div>
 
             <?php if ($courses): ?>
                 <table class="table" id="courseTable">
@@ -188,7 +199,7 @@ try {
                             <th style="width:160px; text-align:center;">Thao tác</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="courseTable">
                         <?php foreach ($courses as $c): ?>
                             <tr>
                                 <td><?= h($c['id']) ?></td>
@@ -200,7 +211,7 @@ try {
                                 <td><?= h($c['theory_hours']) ?></td>
                                 <td><?= h($c['practical_hours']) ?></td>
                                 <td style="text-align: center;">
-                                    <a href="index.php?course_id=<?= h($c['id']) ?>" class="btn-action btn-edit">Biên soạn</a>
+                                    <a href="index.php?course_id=<?= h($c['id']) ?>" class="btn-action btn-edit">Chỉnh sửa</a>
                                     <form method="post" style="display: inline; margin: 0;" onsubmit="return confirm('Xóa học phần này?');">
                                         <button class="button secondary" name="delete" value="<?= h($c['id']) ?>" type="submit">Xóa</button>
                                     </form>
@@ -321,6 +332,31 @@ try {
                 tbody.appendChild(row);
             });
         }
+    </script>
+
+    <script>
+        const searchInput = document.getElementById('searchCourses');
+        searchInput.addEventListener('keyup', function() {
+            const keyword = this.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('#courseTable tr');
+
+            // console.log(rows)
+            
+            rows.forEach(row => {
+                const nganh = row.children[1]?.textContent.toLowerCase() || '';
+                const khoi = row.children[2]?.textContent.toLowerCase() || '';
+                const ma = row.children[3]?.textContent.toLowerCase() || '';
+                const ten = row.children[4]?.textContent.toLowerCase() || '';
+                const searchText = `${nganh} ${khoi} ${ma} ${ten}`;
+                console.log(searchText)
+
+                if (searchText.includes(keyword)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        })
     </script>
     <!-- <script src="./assistant.js"></script> -->
 </body>
