@@ -251,7 +251,7 @@ $html = '
         </tr>
         <tr><td colspan="3">Số giờ tự học (tiết): ' . s($module['self_study_hours']) . '</td></tr>
         <tr><td colspan="3">Đối tượng người học (dự kiến): ' . s($module['target_programs']) . '</td></tr>
-        <tr><td colspan="3">Học kỳ và năm dự kiến học: HK ' . s($module['expected_semester']) . ' - ' . s($module['expected_year']) . '</td></tr>
+        <tr><td colspan="3">Học kỳ và năm dự kiến học: ' . s($module['expected_semester']) . ' - ' . s($module['expected_year']) . '</td></tr>
         <tr><td colspan="3">Học phần tiên quyết: ' . (s($module['prerequisite_modules_text']) ?: 'Không') . '</td></tr>
         <tr><td colspan="3">Học phần song hành: ' . (s($module['parallel_modules_text']) ?: 'Không') . '</td></tr>
         <tr><td colspan="3">Học phần học trước: ' . (s($module['previous_modules_text']) ?: 'Không') . '</td></tr>

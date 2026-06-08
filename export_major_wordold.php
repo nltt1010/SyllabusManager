@@ -1010,7 +1010,7 @@ function addModuleBody(object $section, array $payload, array $styles, bool $wit
     $fullWidthRows = [
         'Số giờ tự học (tiết): ' . s($module['self_study_hours']),
         'Đối tượng người học (dự kiến): ' . s($module['target_programs']),
-        'Học kỳ và năm dự kiến học: HK ' . s($module['expected_semester']) . ' - ' . s($module['expected_year']),
+        'Học kỳ và năm dự kiến học: ' . s($module['expected_semester']) . ' - ' . s($module['expected_year']),
         'Học phần tiên quyết: ' . (s($module['prerequisite_modules_text']) ?: 'Không'),
         'Học phần song hành: ' . (s($module['parallel_modules_text']) ?: 'Không'),
         'Học phần học trước: ' . (s($module['previous_modules_text']) ?: 'Không'),
