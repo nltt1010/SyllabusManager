@@ -24,6 +24,7 @@ DROP TABLE IF EXISTS `assessment_forms`;
 DROP TABLE IF EXISTS `faculties_list`;
 DROP TABLE IF EXISTS `departments_list`;
 DROP TABLE IF EXISTS `module_departments`;
+DROP TABLE IF EXISTS `assessment_tool_relation`;
 
 CREATE TABLE `assessment_forms` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
