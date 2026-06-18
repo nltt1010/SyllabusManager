@@ -746,3 +746,63 @@ INSERT INTO `modules` (`id`, `course_id`, `code`, `name`, `type`, `credits`, `cr
 
 SET FOREIGN_KEY_CHECKS = 1;
 
+-- ---------------------------------------------------------------------
+-- Schema upgrade for curriculum year/program driven syllabus flow
+-- ---------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `education_programs` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `major_id` INT NOT NULL,
+  `year` VARCHAR(20) NOT NULL,
+  UNIQUE KEY `uniq_education_program` (`major_id`, `year`),
+  CONSTRAINT `fk_education_program_major`
+    FOREIGN KEY (`major_id`) REFERENCES `majors`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `major_objectives` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `education_program_id` INT NOT NULL,
+  `sort_order` INT NOT NULL DEFAULT 1,
+  `general_objective` TEXT NULL,
+  `po_content` TEXT NULL,
+  `plo_content` TEXT NULL,
+  CONSTRAINT `fk_major_objective_program`
+    FOREIGN KEY (`education_program_id`) REFERENCES `education_programs`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `lecturers` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(255) NOT NULL,
+  `email` VARCHAR(255) NULL,
+  `phone` VARCHAR(100) NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `course_coordinators` (
+  `course_id` INT NOT NULL,
+  `lecturer_id` INT NOT NULL,
+  `sort_order` INT NOT NULL DEFAULT 1,
+  PRIMARY KEY (`course_id`, `lecturer_id`),
+  CONSTRAINT `fk_course_coordinator_course`
+    FOREIGN KEY (`course_id`) REFERENCES `courses`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_course_coordinator_lecturer`
+    FOREIGN KEY (`lecturer_id`) REFERENCES `lecturers`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `assessment_tools` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `assessment_type` VARCHAR(100) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  UNIQUE KEY `uniq_assessment_tool` (`assessment_type`, `name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `assessment_tool_relation` (
+  `assessment_id` INT NOT NULL,
+  `assessment_tool_id` INT NOT NULL,
+  PRIMARY KEY (`assessment_id`, `assessment_tool_id`),
+  CONSTRAINT `fk_assessment_tool_relation_assessment`
+    FOREIGN KEY (`assessment_id`) REFERENCES `assessments`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_assessment_tool_relation_tool`
+    FOREIGN KEY (`assessment_tool_id`) REFERENCES `assessment_tools`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

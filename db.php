@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/syllabus_helpers.php';
+
 $DB_USER = 'root';
 $DB_PASS = '';
 $DB_HOST = 'localhost';
@@ -20,6 +22,8 @@ try {
     echo "Database connection failed: " . htmlspecialchars($e->getMessage());
     exit;
 }
+
+syllabus_ensure_schema($pdo);
 
 function h($s) {
     return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8');
