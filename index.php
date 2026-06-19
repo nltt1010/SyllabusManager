@@ -15,6 +15,8 @@ $booksCatalog = $pdo->query('SELECT * FROM books_catalog ORDER BY id')->fetchAll
 // 4. Lấy danh mục Khoa phụ trách
 $facultiesList = $pdo->query('SELECT name FROM faculties_list ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
 
+$majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
+
 // 5. Lấy danh mục Bộ môn
 try {
     $departmentsList = $pdo->query('SELECT id, name FROM departments_list ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
@@ -49,6 +51,13 @@ if($course_id){
         .sub-section-title { font-weight: 600; color: #2c3e50; margin: 0; }
         .table th { background-color: #f8f9fa; color: #333; font-weight: 600; text-align: center; vertical-align: middle; font-size: 14px; }
         .form-helper { font-size: 12px; color: #6c757d; display: block; margin-top: 4px; }
+
+        /* Bảng 6.1 */
+        #theoryTopicTable tbody tr.is-chapter { background-color: #eaf0fb; }
+        #theoryTopicTable tbody tr.is-chapter td { vertical-align: middle; }
+        #theoryTopicTable tbody tr.is-intro { background-color: #fff8e1; }
+        #theoryTopicTable tbody tr.is-intro td { vertical-align: middle; font-style: italic; }
+        #theoryTopicTable tbody tr.is-lesson td:first-child { padding-left: 24px; }
     </style>
 </head>
 <body>
@@ -62,7 +71,32 @@ if($course_id){
         <div class="section-title">1. THÔNG TIN HỌC PHẦN</div>
 
         <div class="row g-3">
-            <div class="col-md-6">
+
+            <div class="col-md-2">
+                <label for="year" class="form-label fw-bold">Chọn hoặc nhập năm:</label>
+                <select name="year" id="year" class="form-select">
+                    <option value="">-- Chọn năm --</option>
+                    <?php for ($y = date('Y') + 5; $y >= 2000; $y--): ?>
+                        <option value="<?= $y ?>" <?= $y == date('Y') ? 'selected' : '' ?>>
+                            <?= $y ?>
+                        </option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+
+            <div class="col-md-5">
+                <label class="form-label fw-bold">Chọn ngành từ hệ thống:</label>
+                <select id="majorSelect" name="major_id" class="form-select">
+                    <option value="">-- Chọn ngành --</option>
+                    <?php foreach($majors as $m): ?>
+                        <option value="<?= $m['id'] ?>">
+                            <?= htmlspecialchars($m['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="col-md-5">
                 <label class="form-label fw-bold">Chọn học phần nền từ hệ thống:</label>
                 <select id="courseSelect" name="course_id" class="form-select" onchange="extractCourseName();">
                     <option value="">-- Chọn học phần --</option>
@@ -73,12 +107,12 @@ if($course_id){
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label class="form-label fw-bold">Tên học phần:</label>
                 <input type="text" id="courseName" name="name" class="form-control" required>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label class="form-label fw-bold">Mã học phần:</label>
                 <input type="text" id="code" name="code" class="form-control" required>
             </div>
@@ -181,25 +215,35 @@ if($course_id){
 
         <div class="section-title">3. MỤC TIÊU VÀ CHUẨN ĐẦU RA HỌC PHẦN</div>
 
-        <div class="sub-section-header">
-            <div class="sub-section-title">3.1. Mục tiêu</div>
-        </div>
-        <div class="mb-3">
-            <textarea name="objectives" class="form-control" rows="3" placeholder="Nhập các mục tiêu tổng quát của học phần..."></textarea>
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Mục tiêu chung</label>
+                <textarea name="objective_general" class="form-control" rows="5" placeholder="Nhập mục tiêu chung của học phần..."></textarea>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Mục tiêu cụ thể (PO)</label>
+                <textarea name="objective_specific" class="form-control" rows="5" placeholder="Nhập mục tiêu cụ thể (PO)..."></textarea>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Chuẩn đầu ra chương trình đào tạo (PLO)</label>
+                <textarea name="objective_plo" class="form-control" rows="5" placeholder="Nhập chuẩn đầu ra chương trình đào tạo (PLO)..."></textarea>
+            </div>
         </div>
 
+
+        <div class="section-title">4. CHUẨN ĐẦU RA HỌC PHẦN (BLOOM)</div>
         <div class="sub-section-header">
-            <div class="sub-section-title">3.2. Chuẩn đầu ra học phần (Bloom)</div>
+            <div class="sub-section-title">Chuẩn đầu ra học phần (Bloom)</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addCloRow();">+ Thêm dòng CLO</button>
         </div>
         <table class="table table-bordered align-middle" id="cloTable">
             <thead>
                 <tr>
+                    <th style="width: 10%;">TT</th>
                     <th style="width: 25%;">Lĩnh vực</th>
                     <th style="width: 25%;">Mức độ Bloom Taxonomy</th>
-                    <th style="width: 10%;">TT</th>
-                    <th style="width: 32%;">Chuẩn đầu ra học phần (Mô tả)</th>
-                    <th style="width: 8%;">Hành động</th>
+                    <th style="width: 32%;">Chuẩn đầu ra học phần (Nội dung)</th>
+                    <th style="width: 8%;">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
@@ -207,17 +251,17 @@ if($course_id){
         </table>
         <input type="hidden" id="clos_json" name="clos_json">
 
-        <div class="section-title">4. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</div>
+        <div class="section-title">5. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</div>
 
         <div class="sub-section-header">
-            <div class="sub-section-title">4.1. Thang điểm lượng giá</div>
+            <div class="sub-section-title">5.1. Thang điểm lượng giá</div>
         </div>
         <div class="mb-3">
             <textarea name="grading_scale" class="form-control" rows="2" placeholder="Nhập thông tin quy định thang điểm lý thuyết / thực hành (Dạng chữ hoặc số)..."></textarea>
         </div>
 
         <div class="sub-section-header">
-            <div class="sub-section-title">4.2. Phương pháp kiểm tra lượng giá</div>
+            <div class="sub-section-title">5.2. Phương pháp kiểm tra lượng giá</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addAssessmentRow();">+ Thêm thành phần lượng giá</button>
         </div>
         <table class="table table-bordered align-middle" id="assessmentTable">
@@ -225,10 +269,11 @@ if($course_id){
                 <tr>
                     <th style="width: 15%;">CLOs</th>
                     <th style="width: 15%;">PLO/PI liên quan</th>
-                    <th style="width: 30%;">Hình thức đánh giá (Chọn nhiều)</th>
-                    <th style="width: 22%;">Công cụ đánh giá</th>
+                    <th style="width: 18%;">Mức độ đóng góp</th> 
+                    <th style="width: 17%;">Hình thức đánh giá (Chọn nhiều)</th>
+                    <th style="width: 20%;">Công cụ đánh giá</th>
                     <th style="width: 10%;">Trọng số (%)</th>
-                    <th style="width: 8%;">Hành động</th>
+                    <th style="width: 5%;">Hành động</th>
                 </tr>
             </thead>
             <tbody>
@@ -237,7 +282,7 @@ if($course_id){
         <input type="hidden" id="assessments_json" name="assessments_json">
 
         <div class="sub-section-header">
-            <div class="sub-section-title">4.3. Phương pháp lượng giá hoạt động tự học</div>
+            <div class="sub-section-title">5.3. Phương pháp lượng giá hoạt động tự học</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addSelfStudyRow();">+ Thêm hoạt động tự học</button>
         </div>
         <table class="table table-bordered align-middle" id="selfStudyTable">
@@ -245,7 +290,7 @@ if($course_id){
                 <tr>
                     <th>Hoạt động tự học</th>
                     <th style="width: 15%;">Mục tiêu/Chuẩn đầu ra liên quan(CLOs)</th>
-                    <th style="width: 12%;">Thời lượng (giờ)</th>
+                    <th style="width: 12%; display:none;">Thời lượng (giờ)</th>
                     <th>Phương pháp tự học</th>
                     <th>Cách thức đánh giá</th>
                     <th>Minh chứng</th>
@@ -253,37 +298,46 @@ if($course_id){
                 </tr>
             </thead>
             <tbody>
-                </tbody>
+            </tbody>
+            <tfoot>
+                <tr class="fw-bold">
+                    <td colspan="4" class="text-end">Tổng thời lượng tự học:</td>
+                    <td colspan="2">
+                        <input type="text" id="self_study_total_display" class="form-control fw-bold" readonly placeholder="0">
+                    </td>
+                </tr>
+            </tfoot>
         </table>
         <input type="hidden" id="self_study_json" name="self_study_json">
 
 
-        <div class="section-title">5. NỘI DUNG HỌC PHẦN VÀ PHƯƠNG PHÁP DẠY-HỌC</div>
+        <div class="section-title">6. NỘI DUNG HỌC PHẦN VÀ PHƯƠNG PHÁP DẠY-HỌC</div>
 
         <div class="sub-section-header">
-            <div class="sub-section-title">5.1. Lý thuyết</div>
+            <div class="sub-section-title">6.1. Lý thuyết</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addTheoryRow();">+ Thêm bài giảng lý thuyết</button>
         </div>
         <table class="table table-bordered align-middle" id="theoryTopicTable">
             <thead>
                 <tr>
-                    <th style="width: 15%;">Chương/Bài</th>
-                    <th style="width: 22%;">Bài giảng/ Nội dung lý thuyết</th>
-                    <th style="width: 15%;">Hình thức giảng dạy</th>
-                    <th style="width: 10%;">Số tiết trên lớp</th>
-                    <th style="width: 10%;">Số tiết tự học</th>
-                    <th style="width: 12%;">Chuẩn đầu ra liên quan(CLOs)</th>
-                    <th>Tên sách/giáo trình, chương trình được sử dụng</th>
-                    <th style="width: 6%;">Xóa</th>
+                    <th style="width: 10%;">Chương/Bài</th>
+                    <th style="width: 20%;">Bài giảng/ Nội dung lý thuyết</th>
+                    <th style="width: 10%;">Hình thức giảng dạy</th>
+                    <th style="width: 7%;">Số tiết trên lớp</th>
+                    <th style="width: 7%;">Số tiết tự học</th>
+                    <th style="width: 7%;">Số tiết trực tuyến</th>
+                    <th style="width: 10%;">Phương pháp dạy học</th>
+                    <th style="width: 9%;">Chuẩn đầu ra liên quan (CLOs)</th>
+                    <th style="width: 15%;">Tên sách/giáo trình được sử dụng</th>
+                    <th style="width: 5%;">Xóa</th>
                 </tr>
             </thead>
-            <tbody>
-                </tbody>
+            <tbody></tbody>
         </table>
         <input type="hidden" id="theory_json" name="theory_json">
 
         <div class="sub-section-header">
-            <div class="sub-section-title">5.2. Thực hành</div>
+            <div class="sub-section-title">6.2. Thực hành</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addPracticalRow();">+ Thêm nội dung thực hành</button>
         </div>
         <table class="table table-bordered align-middle" id="practicalTopicTable">
@@ -304,7 +358,7 @@ if($course_id){
         <input type="hidden" id="practical_json" name="practical_json">
 
         <div class="sub-section-header">
-            <div class="sub-section-title">5.3. Lý thuyết và thực hành (chung)</div>
+            <div class="sub-section-title">6.3. Lý thuyết và thực hành (chung)</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addCombinedRow();">+ Thêm chủ đề tích hợp chung</button>
         </div>
         <table class="table table-bordered align-middle" id="combinedTopicTable">
@@ -327,10 +381,10 @@ if($course_id){
         <input type="hidden" id="combined_json" name="combined_json">
 
 
-        <div class="section-title">6. TÀI LIỆU DẠY HỌC</div>
+        <div class="section-title">7. TÀI LIỆU DẠY HỌC</div>
 
         <div class="sub-section-header">
-            <div class="sub-section-title">6.1. Tài liệu giảng dạy</div>
+            <div class="sub-section-title">7.1. Tài liệu giảng dạy</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addResourceRow('resourceTeachTable');">+ Thêm tài liệu giảng dạy</button>
         </div>
         <table class="table table-bordered align-middle" id="resourceTeachTable">
@@ -351,7 +405,7 @@ if($course_id){
         <input type="hidden" id="res_teach_json" name="res_teach_json">
 
         <div class="sub-section-header">
-            <div class="sub-section-title">6.2. Tài liệu tự học</div>
+            <div class="sub-section-title">7.2. Tài liệu tự học</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addResourceRow('resourceSelfTable');">+ Thêm tài liệu tự học</button>
         </div>
         <table class="table table-bordered align-middle" id="resourceSelfTable">
@@ -491,6 +545,14 @@ function calculateTotalHours() {
     document.getElementById('total_hours').value = lt + th;
 }
 
+function syncSelfStudyTotal() {
+    const selfHours = document.querySelector('input[name="self_study_hours"]');
+    const totalDisplay = document.getElementById('self_study_total_display');
+    if (selfHours && totalDisplay) {
+        totalDisplay.value = parseInt(selfHours.value) || 0;
+    }
+}
+
 let cloIndex = 0;
 let assessmentRowIndex = 0;
 
@@ -570,12 +632,12 @@ function addCloRow() {
 
     // QUAN TRỌNG: Thêm một thẻ nhỏ <small class="verbs-hint"> dưới textarea để hiển thị từ gợi ý trực quan
     tr.innerHTML = `
-        <td>${domainHtml}</td>
-        <td>${bloomHtml}</td>
         <td>
             <input type="hidden" name="clo_row_ids[]" value="${rowId}">
             <input type="text" class="form-control c-code text-center fw-bold" name="clo_code[]" value="" placeholder="CLO1 hoặc CLO1, CLO2">
         </td>
+        <td>${domainHtml}</td>
+        <td>${bloomHtml}</td>
         <td>
             <textarea class="form-control c-desc" name="clo_description[]" rows="3" placeholder="Nhập mô tả..."></textarea>
             <small class="form-helper verbs-hint d-block mt-1 text-primary fw-semibold" style="min-height: 18px;"></small>
@@ -587,11 +649,13 @@ function addCloRow() {
     tbody.appendChild(tr);
     
     reindexCloTable();
+    syncCloToTables();
 }
 
 function removeCloRow(btn) {
     btn.closest('tr').remove();
     reindexCloTable();
+    syncCloToTables();
 }
 
 function reindexCloTable() {
@@ -657,13 +721,22 @@ function addAssessmentRow() {
             <input type="text" class="form-control a-clos" name="assessment_clos[]">
         </td>
         <td><input type="text" class="form-control a-plo" name="assessment_plo_pi[]"></td>
+        <td>  
+            <select class="form-select a-contribution" name="assessment_contribution[]">
+                <option value="">-- Chọn mức độ -- </option>
+                <option value="I">I – Giới thiệu (Introduce)</option>
+                <option value="R">R – Củng cố (Reinforce)</option>
+                <option value="M">M – Thành thạo (Master)</option>
+                <option value="A">A – Đánh giá (Assess)</option>
+            </select>
+        </td>
         <td>
             <select class="form-select a-form select2-multiple" name="assessment_form_${rowId}[]" multiple="multiple">
                 ${methodOptions}
             </select>
         </td>
         <td><input type="text" class="form-control a-tool" name="assessment_tool[]" placeholder="Người dùng tự nhập công cụ"></td>
-        <td><input type="number" class="form-control a-weight" name="assessment_weight[]" value="0" min="0" max="100"></td>
+        <td><input type="number" class="form-control a-weight" name="assessment_weight[]" value="0" min="0" max="100" oninput="onWeightInput(this)"></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
     `;
     tbody.appendChild(tr);
@@ -673,13 +746,29 @@ function addAssessmentRow() {
     });
 }
 
+function calcTotalWeight() {
+    let total = 0;
+    document.querySelectorAll('#assessmentTable tbody .a-weight').forEach(input => {
+        total += parseFloat(input.value) || 0;
+    });
+    return total;
+}
+
+function onWeightInput(input) {
+    const total = calcTotalWeight();
+    if (total > 100) {
+        input.value = Math.max(0, parseFloat(input.value) - (total - 100));
+        alert('Tổng trọng số của tất cả CLOs là 100%');
+    }
+}
+
 function addSelfStudyRow() {
     const tbody = document.querySelector('#selfStudyTable tbody');
     const tr = document.createElement('tr');
     tr.innerHTML = `
         <td><input type="text" class="form-control ss-activity" name="self_study_name[]" placeholder="Tự nhập hoạt động"></td>
         <td><input type="text" class="form-control ss-clos" name="self_study_clos[]" placeholder="Tự nhập CLOs"></td>
-        <td><input type="number" class="form-control ss-duration" name="self_study_duration[]" value="0" min="0"></td>
+        <td style="display:none;"><input type="number" class="form-control ss-duration" name="self_study_duration[]" value="0" min="0"></td>
         <td><input type="text" class="form-control ss-method" name="self_study_method[]" placeholder="Phương pháp tự học"></td>
         <td><input type="text" class="form-control ss-assess" name="self_study_assess[]" placeholder="Cách thức đánh giá"></td>
         <td><input type="text" class="form-control ss-evidence" name="self_study_evidence[]" placeholder="Minh chứng"></td>
@@ -688,63 +777,149 @@ function addSelfStudyRow() {
     tbody.appendChild(tr);
 }
 
-function addTheoryRow() {
-    const tbody = document.querySelector('#theoryTopicTable tbody');
-    const tr = document.createElement('tr');
+// function addTheoryRow() {
+//     const tbody = document.querySelector('#theoryTopicTable tbody');
+//     const tr = document.createElement('tr');
 
-    // Tạo danh sách Sách/Giáo trình hỗ trợ tìm kiếm/gõ thêm
-    let textbookOptions = `<option value="">-- Chọn giáo trình --</option>`;
-    if (typeof dbBooks !== 'undefined' && dbBooks.length > 0) {
-        dbBooks.forEach(b => { textbookOptions += `<option value="${b.title}">${b.title}</option>`; });
-    }
-    textbookOptions += `<option value="Option 1">Option 1</option><option value="Option 2">Option 2</option><option value="Option 3">Option 3</option>`;
+//     // Tạo danh sách Sách/Giáo trình hỗ trợ tìm kiếm/gõ thêm
+//     let textbookOptions = `<option value="">-- Chọn giáo trình --</option>`;
+//     if (typeof dbBooks !== 'undefined' && dbBooks.length > 0) {
+//         dbBooks.forEach(b => { textbookOptions += `<option value="${b.title}">${b.title}</option>`; });
+//     }
+//     textbookOptions += `<option value="Option 1">Option 1</option><option value="Option 2">Option 2</option><option value="Option 3">Option 3</option>`;
 
-    tr.innerHTML = `
-        <td>
-            <select class="form-select t-type select2-simple" onchange="reindexTheoryChaptersAndLessons()">
-                <option value="Chương">Chương</option>
-                <option value="Bài">Bài</option>
-            </select>
-            <input type="text" class="form-control t-chapter-label text-center fw-bold mt-1 bg-light" name="theory_chapter[]" readonly>
-        </td>
-        <td>
-            <textarea class="form-control t-title" name="theory_title[]" rows="2" placeholder="Người dùng tự nhập nội dung bài giảng lý thuyết..."></textarea>
-        </td>
-        <td><input type="text" class="form-control t-method" name="theory_method[]" value="Học trên lớp"></td>
-        <td><input type="number" class="form-control t-class" name="theory_class_hours[]" value="0" min="0"></td>
-        <td><input type="number" class="form-control t-self" name="theory_self_hours[]" value="0" min="0"></td>
-        <td><input type="text" class="form-control t-clos" name="theory_clos[]" placeholder="Tự nhập CLOs"></td>
-        <td><select class="form-select t-textbook select2-searchable" name="theory_book[]">${textbookOptions}</select></td>
-        <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeTheoryRow(this)">Xóa</button></td>
-    `;
-    tbody.appendChild(tr);
+//     tr.innerHTML = `
+//         <td>
+//             <select class="form-select t-type select2-simple" onchange="reindexTheoryChaptersAndLessons()">
+//                 <option value="Chương">Chương</option>
+//                 <option value="Bài">Bài</option>
+//             </select>
+//             <input type="text" class="form-control t-chapter-label text-center fw-bold mt-1 bg-light" name="theory_chapter[]" readonly>
+//         </td>
+//         <td>
+//             <textarea class="form-control t-title" name="theory_title[]" rows="2" placeholder="Người dùng tự nhập nội dung bài giảng lý thuyết..."></textarea>
+//         </td>
+//         <td><input type="text" class="form-control t-method" name="theory_method[]" value="Học trên lớp"></td>
+//         <td><input type="number" class="form-control t-class" name="theory_class_hours[]" value="0" min="0"></td>
+//         <td><input type="number" class="form-control t-self" name="theory_self_hours[]" value="0" min="0"></td>
+//         <td><input type="text" class="form-control t-clos" name="theory_clos[]" placeholder="Tự nhập CLOs"></td>
+//         <td><select class="form-select t-textbook select2-searchable" name="theory_book[]">${textbookOptions}</select></td>
+//         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeTheoryRow(this)">Xóa</button></td>
+//     `;
+//     tbody.appendChild(tr);
 
-    // Khởi tạo select2
-    $(tr.querySelectorAll('.select2-simple')).select2({ width: '100%' });
-    $(tr.querySelectorAll('.select2-searchable')).select2({ width: '100%', tags: true });
+//     // Khởi tạo select2
+//     $(tr.querySelectorAll('.select2-simple')).select2({ width: '100%' });
+//     $(tr.querySelectorAll('.select2-searchable')).select2({ width: '100%', tags: true });
 
-    reindexTheoryChaptersAndLessons();
-}
+//     reindexTheoryChaptersAndLessons();
+// }
 
 function removeTheoryRow(btn) {
     btn.closest('tr').remove();
     reindexTheoryChaptersAndLessons();
 }
 
-// Hàm xử lý đếm số độc lập: Chương chạy từ 1, 2, 3... Bài chạy từ 1, 2, 3... riêng biệt
+// // Hàm xử lý đếm số độc lập: Chương chạy từ 1, 2, 3... Bài chạy từ 1, 2, 3... riêng biệt
+// function reindexTheoryChaptersAndLessons() {
+//     let chapterCount = 0;
+//     let lessonCount = 0;
+
+//     document.querySelectorAll('#theoryTopicTable tbody tr').forEach(tr => {
+//         const typeSelect = tr.querySelector('.t-type');
+//         if (!typeSelect) return;
+
+//         const type = typeSelect.value;
+//         if (type === "Chương") {
+//             chapterCount++;
+//             tr.querySelector('.t-chapter-label').value = `Chương ${chapterCount}`;
+//         } else if (type === "Bài") {
+//             lessonCount++;
+//             tr.querySelector('.t-chapter-label').value = `Bài ${lessonCount}`;
+//         }
+//     });
+// }
+
+function addTheoryRow(type = 'Bài') {
+    const tbody = document.querySelector('#theoryTopicTable tbody');
+    const tr = document.createElement('tr');
+
+    let textbookOptions = `<option value="">-- Chọn giáo trình --</option>`;
+    if (typeof dbBooks !== 'undefined' && dbBooks.length > 0) {
+        dbBooks.forEach(b => { textbookOptions += `<option value="${b.title}">${b.title}</option>`; });
+    }
+    textbookOptions += `<option value="Option 1">Option 1</option><option value="Option 2">Option 2</option><option value="Option 3">Option 3</option>`;
+
+    const isChapter = type === 'Chương';
+
+    tr.innerHTML = `
+        <td>
+            <select class="form-select form-select-sm t-type" onchange="onTheoryTypeChange(this)">
+                <option value="Chương" ${isChapter ? 'selected' : ''}>Chương</option>
+                <option value="Bài"    ${!isChapter ? 'selected' : ''}>Bài</option>
+            </select>
+            <input type="text" class="form-control t-chapter-label text-center fw-bold mt-1 bg-light" name="theory_chapter[]" readonly>
+        </td>
+        <td>
+            <textarea class="form-control t-title" name="theory_title[]" rows="2" placeholder="${isChapter ? 'Tên chương...' : 'Nội dung bài giảng lý thuyết...'}"></textarea>
+        </td>
+        <td class="t-extra"><input type="text" class="form-control t-method" name="theory_method[]" value="${isChapter ? '' : 'Học trên lớp'}" ${isChapter ? 'disabled' : ''}></td>
+        <td class="t-extra"><input type="number" class="form-control t-class" name="theory_class_hours[]" value="0" min="0" ${isChapter ? 'disabled' : ''}></td>
+        <td class="t-extra"><input type="number" class="form-control t-self" name="theory_self_hours[]" value="0" min="0" ${isChapter ? 'disabled' : ''}></td>
+        <td class="t-extra"><input type="number" class="form-control t-online" name="theory_online_hours[]" value="0" min="0" ${isChapter ? 'disabled' : ''}></td>
+        <td class="t-extra"><input type="text" class="form-control t-pedagogy" name="theory_pedagogy[]" placeholder="Tự nhập phương pháp..." ${isChapter ? 'disabled' : ''}></td>
+        <td class="t-extra"><input type="text" class="form-control t-clos" name="theory_clos[]" placeholder="Tự nhập CLOs" ${isChapter ? 'disabled' : ''}></td>
+        <td class="t-extra"><select class="form-select t-textbook select2-searchable" name="theory_book[]" ${isChapter ? 'disabled' : ''}>${textbookOptions}</select></td>
+        <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeTheoryRow(this)">Xóa</button></td>
+    `;
+    tbody.appendChild(tr);
+
+    $(tr.querySelectorAll('.select2-searchable')).select2({ width: '100%', tags: true });
+
+    applyTheoryRowStyle(tr, type);
+    reindexTheoryChaptersAndLessons();
+}
+
+function onTheoryTypeChange(sel) {
+    const tr = sel.closest('tr');
+    const type = sel.value;
+    const isChapter = type === 'Chương';
+
+    tr.querySelectorAll('.t-extra input, .t-extra select').forEach(el => {
+        el.disabled = isChapter;
+        if (isChapter) el.value = el.tagName === 'SELECT' ? '' : '';
+    });
+    tr.querySelector('.t-title').placeholder = isChapter ? 'Tên chương...' : 'Nội dung bài giảng lý thuyết...';
+
+    applyTheoryRowStyle(tr, type);
+    reindexTheoryChaptersAndLessons();
+}
+
+function applyTheoryRowStyle(tr, type) {
+    tr.classList.remove('is-chapter', 'is-lesson');
+    if (type === 'Chương') {
+        tr.classList.add('is-chapter');
+        tr.querySelectorAll('.t-extra').forEach(td => td.style.opacity = '0.35');
+    } else {
+        tr.classList.add('is-lesson');
+        tr.querySelectorAll('.t-extra').forEach(td => td.style.opacity = '1');
+    }
+}
+
 function reindexTheoryChaptersAndLessons() {
     let chapterCount = 0;
-    let lessonCount = 0;
+    let lessonCount  = 0;
 
     document.querySelectorAll('#theoryTopicTable tbody tr').forEach(tr => {
         const typeSelect = tr.querySelector('.t-type');
-        if (!typeSelect) return;
+        if (!typeSelect) return; // dòng giới thiệu (Bài 0) không có select
 
         const type = typeSelect.value;
-        if (type === "Chương") {
+        if (type === 'Chương') {
             chapterCount++;
+            lessonCount = 0; // reset bài khi sang chương mới
             tr.querySelector('.t-chapter-label').value = `Chương ${chapterCount}`;
-        } else if (type === "Bài") {
+        } else {
             lessonCount++;
             tr.querySelector('.t-chapter-label').value = `Bài ${lessonCount}`;
         }
@@ -876,6 +1051,23 @@ function reindexResourceTable(tableId) {
 function gatherJsonData() {
     console.log("%c--- BẮT ĐẦU KIỂM TRA TOÀN BỘ GIÁ TRỊ TRONG FORM TRƯỚC KHI LƯU ---", "color: #1a446c; font-weight: bold; font-size: 14px;");
 
+    // 1. Thông tin học phần (year, major)
+    year = document.getElementById('year')?.value || '', // new
+    majorSelect = document.getElementById('majorSelect')?.value || '', // new
+    console.log(year, majorSelect)
+
+    // 3. Mục tiêu (chia làm 3 cột)
+    objective_general = document.getElementsByName('objective_general')[0]?.value || '',
+    objective_specific = document.getElementsByName('objective_specific')[0]?.value || '',
+    objective_plo = document.getElementsByName('objective_plo')[0]?.value || '',
+
+    console.log("objective_general: ", objective_general)
+    console.log("objective_specific: ", objective_specific)
+    console.log("objective_plo: ", objective_plo)
+
+            
+
+
     // 1. In và kiểm tra các giá trị thuộc tính text/select cơ bản
     let basicData = {
         course_id: document.getElementById('courseSelect')?.value || '',
@@ -896,7 +1088,10 @@ function gatherJsonData() {
         coordinating_board: document.getElementsByName('coordinating_board')[0]?.value || '',
         faculty_in_charge: document.getElementsByName('faculty_in_charge')[0]?.value || '',
         description: document.getElementsByName('description')[0]?.value || '',
-        objectives: document.getElementsByName('objectives')[0]?.value || '',
+        // objectives: document.getElementsByName('objectives')[0]?.value || '',  
+        objective_general: document.getElementsByName('objective_general')[0]?.value || '', // new
+        objective_specific: document.getElementsByName('objective_specific')[0]?.value || '', // new
+        objective_plo: document.getElementsByName('objective_plo')[0]?.value || '', // new
         grading_scale: document.getElementsByName('grading_scale')[0]?.value || ''
     };
     console.log("1. Dữ liệu thông tin học phần cơ bản:");
@@ -956,6 +1151,9 @@ function gatherJsonData() {
         const ploInput = tr.querySelector('.a-plo');
         const ploVal = ploInput ? ploInput.value.trim() : '';
 
+        const contribution = tr.querySelector('.a-contribution')?.value || '';
+        console.log("contribution: ", contribution);
+
         const toolInput = tr.querySelector('.a-tool');
         const toolVal = toolInput ? toolInput.value.trim() : '';
 
@@ -968,6 +1166,7 @@ function gatherJsonData() {
             assessments.push({
                 clos: aClosVal,
                 plo_pi: ploVal,
+                contribution: contribution, // new
                 form: formVal,
                 tool: toolVal,
                 weight: weightVal
@@ -997,22 +1196,64 @@ function gatherJsonData() {
     document.getElementById('self_study_json').value = JSON.stringify(selfStudy);
     console.log("4. Mảng Hoạt động tự học đã đóng gói JSON:", selfStudy);
 
-    // 5. Thu thập Tiến độ Lý thuyết
+    // 5. Thu thập Tiến độ Lý thuyết    
     let theory = [];
-    document.querySelectorAll('#theoryTopicTable tbody tr').forEach(tr => {
-        const titleVal = tr.querySelector('.t-title')?.value.trim() || '';
-        if (titleVal !== '') {
+    let theoryRows = Array.from(document.querySelectorAll('#theoryTopicTable tbody tr'));
+
+    theoryRows.forEach(tr => {
+        if (tr.classList.contains('is-intro')) {
             theory.push({
-                chapter: tr.querySelector('.t-chapter-label')?.value || '',
-                title: titleVal,
-                method: tr.querySelector('.t-method')?.value || '',
-                hours_class: tr.querySelector('.t-class')?.value || 0,
-                hours_self: tr.querySelector('.t-self')?.value || 0,
-                clos: tr.querySelector('.t-clos')?.value || '',
-                book: $(tr.querySelector('.t-textbook')).val() || ''
+                chapter: 'Bài 0',
+                title: 'Giới thiệu học phần',
+                type: 'intro',
+                method: '',
+                hours_class: null,
+                hours_self: null,
+                hours_online: null,
+                pedagogy: '',
+                clos: '',
+                book: ''
             });
+            return;
         }
+
+        const titleVal = tr.querySelector('.t-title')?.value.trim() || '';
+        if (titleVal === '') return;
+
+        const typeSelect = tr.querySelector('.t-type');
+        const type = typeSelect ? typeSelect.value : null;
+
+        theory.push({
+            chapter: tr.querySelector('.t-chapter-label')?.value || '',
+            title: titleVal,
+            type: type || 'intro',
+            method: tr.querySelector('.t-method')?.value || '',
+            hours_class: parseFloat(tr.querySelector('.t-class')?.value) || 0,
+            hours_self: parseFloat(tr.querySelector('.t-self')?.value) || 0,
+            hours_online: parseFloat(tr.querySelector('.t-online')?.value) || 0,
+            pedagogy: tr.querySelector('.t-pedagogy')?.value || '',
+            clos: tr.querySelector('.t-clos')?.value || '',
+            book: $(tr.querySelector('.t-textbook')).val() || ''
+        });
     });
+
+    // Tính tổng tiết cho mỗi Chương từ các Bài bên dưới
+    for (let i = 0; i < theory.length; i++) {
+        if (theory[i].type === 'Chương') {
+            let sumClass = 0, sumSelf = 0, sumOnline = 0;
+            // Duyệt các dòng tiếp theo cho đến khi gặp Chương khác
+            for (let j = i + 1; j < theory.length; j++) {
+                if (theory[j].type === 'Chương') break;
+                sumClass  += theory[j].hours_class;
+                sumSelf   += theory[j].hours_self;
+                sumOnline += theory[j].hours_online;
+            }
+            theory[i].hours_class  = sumClass;
+            theory[i].hours_self   = sumSelf;
+            theory[i].hours_online = sumOnline;
+        }
+    }
+
     document.getElementById('theory_json').value = JSON.stringify(theory);
     console.log("5. Mảng Bài giảng lý thuyết đã đóng gói JSON:", theory);
 
@@ -1093,10 +1334,17 @@ function gatherJsonData() {
     console.log("%c--- KIỂM TRA HOÀN TẤT. DỮ LIỆU HỢP LỆ VÀ ĐÃ ĐƯỢC CHUYỂN ĐI! ---", "color: #27ae60; font-weight: bold; font-size: 14px;");
     return true;
 }
+
 // KHỞI TẠO CÁC CẤU HÌNH BAN ĐẦU KHI TRANG TẢI XONG
 $(document).ready(function() {
     $('#courseSelect').select2({
         placeholder: '(Chọn học phần nền từ hệ thống)',
+        allowClear: true,
+        width: '100%'
+    });
+
+    $('#majorSelect').select2({
+        placeholder: '(Chọn ngành nền từ hệ thống)',
         allowClear: true,
         width: '100%'
     });
@@ -1118,9 +1366,36 @@ $(document).ready(function() {
 
     // Nạp sẵn cấu trúc rỗng ban đầu cho form chuyên nghiệp
     addCloRow();
-    addAssessmentRow();
-    addSelfStudyRow();
-    addTheoryRow();
+    // addAssessmentRow();
+    // addSelfStudyRow();
+
+    // Dòng mặc định: Bài 0 - Giới thiệu học phần
+    (function addIntroRow() {
+        const tbody = document.querySelector('#theoryTopicTable tbody');
+        const tr = document.createElement('tr');
+        tr.classList.add('is-intro');
+        tr.innerHTML = `
+            <td class="text-center fw-bold text-secondary" style="font-size:13px;">
+                Bài 0<br><small>(Giới thiệu)</small>
+            </td>
+            <td colspan="8" class="text-muted fst-italic ps-3">
+                Giới thiệu học phần &nbsp;–&nbsp; 0 tiết
+                <input type="hidden" name="theory_chapter[]" value="Bài 0">
+                <input type="hidden" name="theory_title[]" value="Giới thiệu học phần">
+                <input type="hidden" name="theory_class_hours[]" value="0">
+                <input type="hidden" name="theory_self_hours[]" value="0">
+                <input type="hidden" name="theory_online_hours[]" value="0">
+                <input type="hidden" name="theory_pedagogy[]" value="">
+                <input type="hidden" name="theory_clos[]" value="">
+                <input type="hidden" name="theory_method[]" value="">
+                <input type="hidden" name="theory_book[]" value="">
+            </td>
+            <td class="text-center text-muted" style="font-size:12px;">Mặc định</td>
+        `;
+        tbody.appendChild(tr);
+    })();
+
+    addTheoryRow(); 
     addPracticalRow();
     addCombinedRow();
     addResourceRow('resourceTeachTable');
@@ -1129,7 +1404,81 @@ $(document).ready(function() {
     <?php if($selectedCourse): ?>
         extractCourseName();
     <?php endif; ?>
+
+    syncSelfStudyTotal();
+    document.querySelector('input[name="self_study_hours"]').addEventListener('input', syncSelfStudyTotal);
 });
+
+function syncCloToTables() {
+    const cloCodes = [];
+    document.querySelectorAll('#cloTable tbody tr').forEach((tr, idx) => {
+        const code = tr.querySelector('.c-code')?.value.trim() || `CLO${idx + 1}`;
+        cloCodes.push(code);
+    });
+
+    // Sync bảng 5.2
+    const assessTbody = document.querySelector('#assessmentTable tbody');
+    const methodOptions = assessmentMethods.map(m => `<option value="${m}">${m}</option>`).join('');
+    cloCodes.forEach((code, i) => {
+        if (i < assessTbody.rows.length) {
+            const cloInput = assessTbody.rows[i].querySelector('.a-clos');
+            if (cloInput && cloInput.value.trim() === '') cloInput.value = code;
+        } else {
+            assessmentRowIndex++;
+            const rowId = assessmentRowIndex;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <input type="hidden" name="assessment_row_ids[]" value="${rowId}">
+                    <input type="text" class="form-control a-clos" name="assessment_clos[]" value="${code}">
+                </td>
+                <td><input type="text" class="form-control a-plo" name="assessment_plo_pi[]"></td>
+                <td>
+                    <select class="form-select a-contribution" name="assessment_contribution[]">
+                        <option value="">-- Chọn mức độ --</option>
+                        <option value="I">I – Giới thiệu (Introduce)</option>
+                        <option value="R">R – Củng cố (Reinforce)</option>
+                        <option value="M">M – Thành thạo (Master)</option>
+                        <option value="A">A – Đánh giá (Assess)</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="form-select a-form select2-multiple" name="assessment_form_${rowId}[]" multiple="multiple">
+                        ${methodOptions}
+                    </select>
+                </td>
+                <td><input type="text" class="form-control a-tool" name="assessment_tool[]" placeholder="Người dùng tự nhập công cụ"></td>
+                <td><input type="number" class="form-control a-weight" name="assessment_weight[]" value="0" min="0" max="100" oninput="onWeightInput(this)"></td>
+                <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
+            `;
+            assessTbody.appendChild(tr);
+            $(tr.querySelector('.select2-multiple')).select2({ width: '100%', placeholder: "Chọn một hoặc nhiều hình thức" });
+        }
+    });
+    while (assessTbody.rows.length > cloCodes.length) assessTbody.deleteRow(assessTbody.rows.length - 1);
+
+    // Sync bảng 5.3
+    const ssTbody = document.querySelector('#selfStudyTable tbody');
+    cloCodes.forEach((code, i) => {
+        if (i < ssTbody.rows.length) {
+            const cloInput = ssTbody.rows[i].querySelector('.ss-clos');
+            if (cloInput && cloInput.value.trim() === '') cloInput.value = code;
+        } else {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" class="form-control ss-activity" name="self_study_name[]" placeholder="Tự nhập hoạt động"></td>
+                <td><input type="text" class="form-control ss-clos" name="self_study_clos[]" value="${code}"></td>
+                <td style="display:none;"><input type="number" class="form-control ss-duration" name="self_study_duration[]" value="0" min="0"></td>
+                <td><input type="text" class="form-control ss-method" name="self_study_method[]" placeholder="Phương pháp tự học"></td>
+                <td><input type="text" class="form-control ss-assess" name="self_study_assess[]" placeholder="Cách thức đánh giá"></td>
+                <td><input type="text" class="form-control ss-evidence" name="self_study_evidence[]" placeholder="Minh chứng"></td>
+                <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
+            `;
+            ssTbody.appendChild(tr);
+        }
+    });
+    while (ssTbody.rows.length > cloCodes.length) ssTbody.deleteRow(ssTbody.rows.length - 1);
+}
 
 </script>
 </body>

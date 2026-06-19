@@ -212,22 +212,39 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
     <div class="p-3 bg-light border rounded"><?= nl2br(h($module['description'])) ?></div>
 
     <div class="section-title">3. MỤC TIÊU VÀ CHUẨN ĐẦU RA HỌC PHẦN</div>
-    <div class="sub-section-header"><div class="sub-section-title">3.1. Mục tiêu chung</div></div>
-    <div class="p-3 bg-light border rounded mb-3"><?= nl2br(h($module['objectives'])) ?></div>
+    <!-- <div class="sub-section-header"><div class="sub-section-title">3.1. Mục tiêu chung</div></div>
+    <div class="p-3 bg-light border rounded mb-3"><?= nl2br(h($module['objectives'])) ?></div> -->
 
-    <div class="sub-section-header"><div class="sub-section-title">3.2. Chuẩn đầu ra học phần (Bloom)</div></div>
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="sub-section-header"><div class="sub-section-title">Mục tiêu chung</div></div>
+            <div class="p-3 bg-light border rounded"><?= nl2br(h($module['objective_general'] ?? $module['objectives'] ?? '')) ?></div>
+        </div>
+        <div class="col-12">
+            <div class="sub-section-header"><div class="sub-section-title">Mục tiêu cụ thể (PO)</div></div>
+            <div class="p-3 bg-light border rounded"><?= nl2br(h($module['objective_specific'] ?? '')) ?></div>
+        </div>
+        <div class="col-12">
+            <div class="sub-section-header"><div class="sub-section-title">Chuẩn đầu ra CTĐT (PLO)</div></div>
+            <div class="p-3 bg-light border rounded"><?= nl2br(h($module['objective_plo'] ?? '')) ?></div>
+        </div>
+    </div>
+
+    <div class="section-title">4. CHUẨN ĐẦU RA HỌC PHẦN (BLOOM)</div>
+    <!-- <div class="sub-section-header"><div class="sub-section-title">Chuẩn đầu ra học phần (Bloom)</div></div> -->
     <table class="table table-bordered align-middle">
         <thead>
             <tr>
+                <th style="width: 10%;">TT</th>
                 <th style="width: 25%;">Lĩnh vực</th>
                 <th style="width: 25%;">Mức độ Bloom Taxonomy</th>
-                <th style="width: 10%;">TT</th>
                 <th style="width: 40%;">Chuẩn đầu ra đại học</th>
             </tr>
         </thead>
         <tbody>
             <?php if (!empty($clos)): foreach($clos as $c): ?>
                 <tr>
+                    <td class="text-center"><?= h($c['code']) ?></td>
                     <td class="text-center">
                         <?php
                         if (!empty($c['domain'])) {
@@ -249,7 +266,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                         }
                         ?>
                     </td>
-                    <td class="text-center"><?= h($c['code']) ?></td>
+                    
                     <td><?= nl2br(h($c['description'])) ?></td>
 
 
@@ -260,18 +277,19 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </tbody>
     </table>
 
-    <div class="section-title">4. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</div>
-    <div class="sub-section-header"><div class="sub-section-title">4.1. Thang điểm lượng giá</div></div>
+    <div class="section-title">5. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</div>
+    <div class="sub-section-header"><div class="sub-section-title">5.1. Thang điểm lượng giá</div></div>
     <div class="p-3 bg-light border rounded mb-3"><?= h($module['grading_scale']) ?></div>
 
     <div class="section">
-        <div class="sub-section-header"><div class="sub-section-title">4.2. Phương pháp kiểm tra lượng giá</div></div>
+        <div class="sub-section-header"><div class="sub-section-title">5.2. Phương pháp kiểm tra lượng giá</div></div>
         <table class="table table-bordered align-middle">
             <thead>
                 <tr>
-                    <th style="width: 15%; text-align: center;">CLOs</th>
-                    <th style="width: 15%; text-align: center;">PLO/PI liên quan</th>
-                    <th style="width: 30%;">Hình thức đánh giá</th>
+                    <th style="width: 12%; text-align: center;">CLOs</th>
+                    <th style="width: 12%; text-align: center;">PLO/PI liên quan</th>
+                    <th style="width: 12%; text-align: center;">Mức độ đóng góp</th>
+                    <th style="width: 28%;">Hình thức đánh giá</th>
                     <th style="width: 28%;">Công cụ đánh giá</th>
                     <th style="width: 12%; text-align: center;">Trọng số</th>
                 </tr>
@@ -282,6 +300,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                         <tr>
                             <td class="text-center"><?= h($a['clos_codes'] ?: '---') ?></td>
                             <td class="text-center fw-semibold"><?= h($a['plo_pi']) ?></td>
+                            <td class="text-center fw-bold text-primary"><?= h($a['contribution'] ?? '') ?></td>
                             <td><?= h($a['form']) ?></td>
                             <td><?= h($a['tool']) ?></td>
                             <td class="text-center"><?= h($a['weight']) ?>%</td>
@@ -296,7 +315,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </table>
     </div>
     <div class="section">
-        <div class="sub-section-header"><div class="sub-section-title">4.3. Lượng giá hoạt động tự học</div></div>
+        <div class="sub-section-header"><div class="sub-section-title">5.3. Lượng giá hoạt động tự học</div></div>
         <table class="table table-bordered align-middle">
             <thead>
                 <tr>
@@ -329,16 +348,18 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </table>
     </div>
 
-    <div class="section-title">5. NỘI DUNG HỌC PHẦN VÀ TIẾN ĐỘ GIẢNG DẠY</div>
-    <div class="sub-section-header"><div class="sub-section-title">5.1. Tiến độ bài giảng Lý thuyết</div></div>
+    <div class="section-title">6. NỘI DUNG HỌC PHẦN VÀ TIẾN ĐỘ GIẢNG DẠY</div>
+    <div class="sub-section-header"><div class="sub-section-title">6.1. Tiến độ bài giảng Lý thuyết</div></div>
     <table class="table table-bordered align-middle">
         <thead>
             <tr>
                 <th style="width: 15%;">Chương/Bài</th>
                 <th>Nội dung lý thuyết</th>
                 <th>Hình thức dạy</th>
-                <th style="width: 10%;">Tiết trên lớp</th>
-                <th style="width: 10%;">Tiết tự học</th>
+                <th style="width: 7%;">Tiết trên lớp</th>
+                <th style="width: 7%;">Tiết tự học</th>
+                <th style="width: 7%;">Tiết trực tuyến</th>
+                <th style="width: 10%;">Phương pháp dạy học</th>
                 <th>CLOs đạt được</th>
                 <th>Tài liệu học tập liên quan</th>
             </tr>
@@ -351,6 +372,8 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                     <td><?= h($t['method']) ?></td>
                     <td class="text-center"><?= h($t['class_hours']) ?></td>
                     <td class="text-center"><?= h($t['self_study_hours']) ?></td>
+                    <td class="text-center"><?= h($t['online_hours'] ?? 0) ?></td>
+                    <td><?= h($t['pedagogy'] ?? '') ?></td>
                     <td class="text-center"><?= h($t['clos_codes']) ?></td>
                     <td><?= h($t['textbook_info']) ?></td>
                 </tr>
@@ -360,7 +383,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </tbody>
     </table>
 
-    <div class="sub-section-header"><div class="sub-section-title">5.2. Tiến độ Thực hành</div></div>
+    <div class="sub-section-header"><div class="sub-section-title">6.2. Tiến độ Thực hành</div></div>
     <table class="table table-bordered align-middle">
         <thead>
             <tr>
@@ -388,7 +411,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </tbody>
     </table>
 
-    <div class="sub-section-header"><div class="sub-section-title">5.3. Lý thuyết & Thực hành tích hợp (chung)</div></div>
+    <div class="sub-section-header"><div class="sub-section-title">6.3. Lý thuyết & Thực hành tích hợp (chung)</div></div>
     <table class="table table-bordered align-middle">
         <thead>
             <tr>
@@ -420,10 +443,10 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </tbody>
     </table>
 
-    <div class="section-title">6. TÀI LIỆU DẠY VÀ HỌC</div>
+    <div class="section-title">7. TÀI LIỆU DẠY VÀ HỌC</div>
 
     <div class="sub-section-header">
-        <div class="sub-section-title">6.1. Tài liệu giảng dạy</div>
+        <div class="sub-section-title">7.1. Tài liệu giảng dạy</div>
     </div>
     <table class="table table-bordered align-middle">
         <thead>
@@ -463,7 +486,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
     </table>
 
     <div class="sub-section-header">
-        <div class="sub-section-title">6.2. Tài liệu tự học</div>
+        <div class="sub-section-title">7.2. Tài liệu tự học</div>
     </div>
     <table class="table table-bordered align-middle">
         <thead>
