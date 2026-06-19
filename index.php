@@ -343,13 +343,15 @@ if($course_id){
         <table class="table table-bordered align-middle" id="practicalTopicTable">
             <thead>
                 <tr>
-                    <th style="width: 15%;">Chủ đề</th>
+                    <th style="width: 12%;">Chủ đề</th>
                     <th>Nội dung thực hành/ Kỹ năng</th>
-                    <th style="width: 15%;">Hình thức dạy học</th>
-                    <th style="width: 10%;">Số tiết TH</th>
-                    <th style="width: 15%;">Chuẩn đầu ra liên quan(CLOs)</th>
-                    <th style="width: 18%;">Cơ sở thực hành</th>
-                    <th style="width: 6%;">Xóa</th>
+                    <th style="width: 10%;">Hình thức dạy học</th>
+                    <th style="width: 7%;">Số tiết TH</th>
+                    <th style="width: 7%;">Số tiết trực tuyến</th>
+                    <th style="width: 10%;">Phương pháp dạy học</th>
+                    <th style="width: 10%;">CLOs</th>
+                    <th style="width: 12%;">Cơ sở thực hành</th>
+                    <th style="width: 5%;">Xóa</th>
                 </tr>
             </thead>
             <tbody>
@@ -364,15 +366,17 @@ if($course_id){
         <table class="table table-bordered align-middle" id="combinedTopicTable">
             <thead>
                 <tr>
-                    <th style="width: 6%;">STT</th>
+                    <th style="width: 5%;">STT</th>
                     <th>Nội dung chính</th>
-                    <th style="width: 15%;">Hình thức dạy học</th>
-                    <th style="width: 8%;">Số tiết LT</th>
-                    <th style="width: 8%;">Số tiết TH</th>
-                    <th style="width: 8%;">Số tiết tự học</th>
-                    <th style="width: 12%;">Chuẩn đầu ra liên quan(CLOs)</th>
-                    <th style="width: 18%;">Cơ sở thực hành</th>
-                    <th style="width: 6%;">Xóa</th>
+                    <th style="width: 10%;">Hình thức dạy học</th>
+                    <th style="width: 7%;">Số tiết LT</th>
+                    <th style="width: 7%;">Số tiết TH</th>
+                    <th style="width: 7%;">Số tiết trực tuyến</th>
+                    <th style="width: 7%;">Tự học</th>
+                    <th style="width: 10%;">Phương pháp dạy học</th>
+                    <th style="width: 10%;">CLOs</th>
+                    <th style="width: 12%;">Cơ sở thực hành</th>
+                    <th style="width: 5%;">Xóa</th>
                 </tr>
             </thead>
             <tbody>
@@ -942,6 +946,8 @@ function addPracticalRow() {
         <td><textarea class="form-control p-content" name="practical_content[]" rows="1" placeholder="Nội dung thực hành"></textarea></td>
         <td><input type="text" class="form-control p-method" name="practical_method[]" placeholder="Hình thức dạy"></td>
         <td><input type="number" class="form-control p-hours" name="practical_hours[]" value="0" min="0"></td>
+        <td><input type="number" class="form-control p-online" name="practical_online_hours[]" value="0" min="0"></td>
+        <td><input type="text" class="form-control p-pedagogy" name="practical_pedagogy[]" placeholder="Phương pháp dạy họcs"></td>
         <td><input type="text" class="form-control p-clos" name="practical_clos[]" placeholder="Tự nhập CLOs"></td>
         <td><select class="form-select p-facility select2-searchable" name="practical_facility[]">${facilityOptions}</select></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
@@ -967,7 +973,9 @@ function addCombinedRow() {
         <td><input type="text" class="form-control c-method" name="combined_method[]" placeholder="Hình thức dạy"></td>
         <td><input type="number" class="form-control c-lt" name="combined_theory_hours[]" value="0" min="0"></td>
         <td><input type="number" class="form-control c-th" name="combined_practical_hours[]" value="0" min="0"></td>
+        <td><input type="number" class="form-control c-online" name="combined_online_hours[]" value="0" min="0"></td>
         <td><input type="number" class="form-control c-sh" name="combined_self_hours[]" value="0" min="0"></td>
+        <td><input type="text" class="form-control c-pedagogy" name="combined_pedagogy[]" placeholder="Phương pháp dạy học"></td>
         <td><input type="text" class="form-control c-clos" name="combined_clos[]" placeholder="Tự nhập CLOs"></td>
         <td><select class="form-select c-facility select2-searchable" name="combined_facility[]">${facilityOptions}</select></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeCombinedRow(this);">Xóa</button></td>
@@ -1267,6 +1275,8 @@ function gatherJsonData() {
                 content: tr.querySelector('.p-content')?.value.trim() || '',
                 method: tr.querySelector('.p-method')?.value || '',
                 hours_lab: tr.querySelector('.p-hours')?.value || 0,
+                hours_online: tr.querySelector('.p-online')?.value || 0,
+                pedagogy: tr.querySelector('.p-pedagogy')?.value || '',
                 clos: tr.querySelector('.p-clos')?.value || '',
                 facility: $(tr.querySelector('.p-facility')).val() || ''
             });
@@ -1286,7 +1296,9 @@ function gatherJsonData() {
                 method: tr.querySelector('.c-method')?.value || '',
                 hours_theory: tr.querySelector('.c-lt')?.value || 0,
                 hours_practice: tr.querySelector('.c-th')?.value || 0,
+                hours_online: tr.querySelector('.c-online')?.value || 0,
                 hours_self: tr.querySelector('.c-sh')?.value || 0,
+                pedagogy: tr.querySelector('.c-pedagogy')?.value || '',
                 clos: tr.querySelector('.c-clos')?.value || '',
                 facility: $(tr.querySelector('.c-facility')).val() || ''
             });

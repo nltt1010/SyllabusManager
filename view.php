@@ -372,13 +372,13 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                     <td><?= h($t['method']) ?></td>
                     <td class="text-center"><?= h($t['class_hours']) ?></td>
                     <td class="text-center"><?= h($t['self_study_hours']) ?></td>
-                    <td class="text-center"><?= h($t['online_hours'] ?? 0) ?></td>
+                    <td class="text-center"><?= h($t['hours_online'] ?? 0) ?></td>
                     <td><?= h($t['pedagogy'] ?? '') ?></td>
                     <td class="text-center"><?= h($t['clos_codes']) ?></td>
                     <td><?= h($t['textbook_info']) ?></td>
                 </tr>
             <?php endforeach; else: ?>
-                <tr><td colspan="7" class="text-center text-muted">Chưa thiết lập bài giảng lý thuyết</td></tr>
+                <tr><td colspan="9" class="text-center text-muted">Chưa thiết lập bài giảng lý thuyết</td></tr>
             <?php endif; ?>
         </tbody>
     </table>
@@ -387,12 +387,14 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
     <table class="table table-bordered align-middle">
         <thead>
             <tr>
-                <th style="width: 15%;">Chủ đề</th>
+                <th style="width: 12%;">Chủ đề</th>
                 <th>Nội dung chi tiết/ Kỹ năng</th>
-                <th>Hình thức tổ chức</th>
-                <th style="width: 10%;">Số tiết TH</th>
-                <th>CLOs đạt được</th>
-                <th>Cơ sở thực hành</th>
+                <th style="width: 10%;">Hình thức tổ chức</th>
+                <th style="width: 7%;">Số tiết TH</th>
+                <th style="width: 7%;">Số tiết TT</th>
+                <th style="width: 10%;">Phương pháp DH</th>
+                <th style="width: 10%;">CLOs đạt được</th>
+                <th style="width: 12%;">Cơ sở thực hành</th>
             </tr>
         </thead>
         <tbody>
@@ -402,11 +404,13 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                     <td><?= h($p['content']) ?></td>
                     <td><?= h($p['method']) ?></td>
                     <td class="text-center"><?= h($p['lab_hours']) ?></td>
+                    <td class="text-center"><?= h($p['hours_online'] ?? '–') ?></td>
+                    <td><?= h($p['pedagogy'] ?? '') ?></td>
                     <td class="text-center"><?= h($p['clos_codes']) ?></td>
                     <td><?= h($p['facility_name'] ?? 'Chưa bố trí') ?></td>
                 </tr>
             <?php endforeach; else: ?>
-                <tr><td colspan="6" class="text-center text-muted">Chưa thiết lập nội dung thực hành</td></tr>
+                <tr><td colspan="8" class="text-center text-muted">Chưa thiết lập nội dung thực hành</td></tr>
             <?php endif; ?>
         </tbody>
     </table>
@@ -415,14 +419,16 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
     <table class="table table-bordered align-middle">
         <thead>
             <tr>
-                <th style="width: 8%;">STT</th>
+                <th style="width: 5%;">STT</th>
                 <th>Nội dung chính tích hợp</th>
-                <th>Hình thức dạy học</th>
-                <th style="width: 10%;">Tiết LT</th>
-                <th style="width: 10%;">Tiết TH</th>
-                <th style="width: 10%;">Tiết tự học</th>
-                <th>CLOs đạt được</th>
-                <th>Cơ sở thực hành</th>
+                <th style="width: 10%;">Hình thức dạy học</th>
+                <th style="width: 7%;">Tiết LT</th>
+                <th style="width: 7%;">Tiết TH</th>
+                <th style="width: 7%;">Tiết TT</th>
+                <th style="width: 7%;">Tự học</th>
+                <th style="width: 10%;">Phương pháp DH</th>
+                <th style="width: 9%;">CLOs đạt được</th>
+                <th style="width: 10%;">Cơ sở thực hành</th>
             </tr>
         </thead>
         <tbody>
@@ -433,12 +439,14 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                     <td><?= h($cb['method']) ?></td>
                     <td class="text-center"><?= h($cb['theory_hours']) ?></td>
                     <td class="text-center"><?= h($cb['practical_hours']) ?></td>
+                    <td class="text-center"><?= h($cb['hours_online'] ?? '–') ?></td>
                     <td class="text-center"><?= h($cb['self_study_hours']) ?></td>
+                    <td><?= h($cb['pedagogy'] ?? '') ?></td>
                     <td class="text-center"><?= h($cb['clos_codes']) ?></td>
                     <td><?= h($cb['facility_name'] ?? 'Chưa bố trí') ?></td>
                 </tr>
             <?php endforeach; else: ?>
-                <tr><td colspan="8" class="text-center text-muted">Chưa cấu hình nội dung tích hợp chung</td></tr>
+                <tr><td colspan="10" class="text-center text-muted">Chưa cấu hình nội dung tích hợp chung</td></tr>
             <?php endif; ?>
         </tbody>
     </table>
