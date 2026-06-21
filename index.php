@@ -15,7 +15,29 @@ $booksCatalog = $pdo->query('SELECT * FROM books_catalog ORDER BY id')->fetchAll
 // 4. Lấy danh mục Khoa phụ trách
 $facultiesList = $pdo->query('SELECT name FROM faculties_list ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
 
+$lecturersList = $pdo->query('SELECT id, name FROM lecturers ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
+$coordinatorsData = $pdo->query('SELECT module_id, lecturer_id FROM course_coordinators')->fetchAll(PDO::FETCH_ASSOC);
+$moduleCoordinatorsMap = [];
+foreach ($coordinatorsData as $row) {
+    // Ép kiểu ID về int để đồng bộ kiểu dữ liệu với JavaScript
+    $moduleCoordinatorsMap[$row['module_id']][] = (int)$row['lecturer_id'];
+}
+
 $majors = $pdo->query('SELECT * FROM majors ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
+
+// - Lay danh muc PLO/PI neu CSDL hien co bang danh muc, neu khong se dung danh muc mac dinh tren giao dien.
+try {
+    $ploRows = $pdo->query('SELECT * FROM plos ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $ploRows = [];
+}
+
+// - Lay danh muc cong cu danh gia neu CSDL hien co bang danh muc, neu khong se dung danh muc mac dinh tren giao dien.
+try {
+    $assessmentToolsCatalog = $pdo->query('SELECT * FROM assessment_tools ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $assessmentToolsCatalog = [];
+}
 
 // 5. Lấy danh mục Bộ môn
 try {
@@ -138,13 +160,15 @@ if($course_id){
                 <label class="form-label fw-bold">Phân bộ thời gian tiết (Tổng / LT / TH):</label>
                 <div class="input-group">
                     <input type="number" id="total_hours" name="total_hours" class="form-control bg-light" placeholder="Tổng tiết" readonly min="0">
+                    <!-- - Cho nhap LT truc tiep; So gio tu hoc se tu dong lay LT nhan 2. -->
                     <input type="number" id="theory_hours" name="theory_hours" class="form-control" placeholder="Lý thuyết" min="0" oninput="calculateTotalHours();">
                     <input type="number" id="practical_hours" name="practical_hours" class="form-control" placeholder="Thực hành" min="0" oninput="calculateTotalHours();">
                 </div>
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Số giờ tự học (tiết):</label>
-                <input type="number" name="self_study_hours" class="form-control" value="0" min="0">
+                <!-- - So gio tu hoc tu dong bang so gio ly thuyet nhan 2, khong cho sua truc tiep. -->
+                <input type="number" name="self_study_hours" class="form-control bg-light" value="0" min="0" readonly>
             </div>
 
             <div class="col-md-6">
@@ -195,12 +219,21 @@ if($course_id){
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Ban điều phối học phần:</label>
-                <input type="text" name="coordinating_board" class="form-control" placeholder="Cách nhau bằng dấu phẩy nếu nhiều ban">
+                <select name="coordinating_board[]" class="form-select select2-multiple" multiple="multiple" data-placeholder="-- Chọn ban điều phối --">
+                    <?php foreach($lecturersList as $lecturer): ?>
+                        <?php 
+                            // Kiểm tra xem giảng viên này trước đó có được gán vào môn này không
+                            $selected = (isset($selectedCoordinators) && in_array($lecturer['id'], $selectedCoordinators)) ? 'selected' : ''; 
+                            
+                        ?>
+                        <option value="<?= h($lecturer['id']) ?>" <?= $selected ?>><?= h($lecturer['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Khoa phụ trách:</label>
-                <select name="faculty_in_charge" class="form-select select2-enable">
-                    <option value="">-- Chọn Khoa phụ trách --</option>
+                <select name="faculty_in_charge" class="form-select select2-enable" multiple="multiple" data-placeholder="-- Chọn Khoa phụ trách --">
+                    <!-- <option value="">-- Chọn Khoa phụ trách --</option> -->
                     <?php foreach($facultiesList as $fac): ?>
                         <option value="<?= h($fac) ?>"><?= h($fac) ?></option>
                     <?php endforeach; ?>
@@ -267,11 +300,12 @@ if($course_id){
         <table class="table table-bordered align-middle" id="assessmentTable">
             <thead>
                 <tr>
-                    <th style="width: 15%;">CLOs</th>
-                    <th style="width: 15%;">PLO/PI liên quan</th>
-                    <th style="width: 18%;">Mức độ đóng góp</th> 
-                    <th style="width: 17%;">Hình thức đánh giá (Chọn nhiều)</th>
-                    <th style="width: 20%;">Công cụ đánh giá</th>
+                    <th style="width: 13%;">CLOs</th>
+                    <th style="width: 13%;">PLO</th>
+                    <th style="width: 13%;">PI</th>
+                    <th style="width: 14%;">Mức độ đóng góp</th> 
+                    <th style="width: 16%;">Hình thức đánh giá</th>
+                    <th style="width: 18%;">Công cụ đánh giá</th>
                     <th style="width: 10%;">Trọng số (%)</th>
                     <th style="width: 5%;">Hành động</th>
                 </tr>
@@ -289,7 +323,7 @@ if($course_id){
             <thead>
                 <tr>
                     <th>Hoạt động tự học</th>
-                    <th style="width: 15%;">Mục tiêu/Chuẩn đầu ra liên quan(CLOs)</th>
+                    <th style="width: 15%;">Chuẩn đầu ra liên quan(CLOs)</th>
                     <th style="width: 12%; display:none;">Thời lượng (giờ)</th>
                     <th>Phương pháp tự học</th>
                     <th>Cách thức đánh giá</th>
@@ -326,9 +360,8 @@ if($course_id){
                     <th style="width: 7%;">Số tiết trên lớp</th>
                     <th style="width: 7%;">Số tiết tự học</th>
                     <th style="width: 7%;">Số tiết trực tuyến</th>
-                    <th style="width: 10%;">Phương pháp dạy học</th>
-                    <th style="width: 9%;">Chuẩn đầu ra liên quan (CLOs)</th>
-                    <th style="width: 15%;">Tên sách/giáo trình được sử dụng</th>
+                    <th style="width: 12%;">Phương pháp dạy học</th>
+                    <th style="width: 14%;">Chuẩn đầu ra liên quan (CLOs)</th>
                     <th style="width: 5%;">Xóa</th>
                 </tr>
             </thead>
@@ -441,10 +474,12 @@ if($course_id){
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
-// Các biến cấu trúc danh mục đổ ra từ PHP phục vụ render thẻ select trong các bảng động
 const dbFacilities = <?php echo json_encode($facilitiesList); ?>;
 const dbBooks = <?php echo json_encode($booksCatalog); ?>;
 const dbCoursesList = <?php echo json_encode($courses); ?>;
+const dbMajors = <?php echo json_encode($majors); ?>;
+const dbPloRows = <?php echo json_encode($ploRows); ?>;
+const dbAssessmentToolsCatalog = <?php echo json_encode($assessmentToolsCatalog); ?>;
 const verbsDictionary = {
     "Kiến thức": {
         "1. Nhớ": "Liệt kê, kể tên, định nghĩa, mô tả, nêu, chỉ ra, nhận biết, trình bày, phân loại",
@@ -479,10 +514,87 @@ function h(value) {
         .replaceAll("'", '&#039;');
 }
 
-// Danh sách Hình thức lượng giá cho mục 4.2 (Hỗ trợ Multi-select)
-const assessmentMethods = ["Chuyên cần", "Thi viết", "Thi kết thúc", "Kiểm tra thường", "Logbook", "OCSE", "Tự học", "Đánh giá thái độ"];
+function normalizeListField(value) {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (value && typeof value === 'object') return Object.values(value).filter(Boolean);
+    return String(value || '')
+        .split(/[,;\n|]+/)
+        .map(item => item.trim())
+        .filter(Boolean);
+}
 
-// Định nghĩa từ điển Bloom Taxonomy mở rộng
+function getPloPiCatalog() {
+    const majorId = document.getElementById('majorSelect')?.value || '';
+    const fromRows = dbPloRows
+        .filter(row => !majorId || String(row.major_id || row.majorId || '') === String(majorId) || !row.major_id)
+        .map(row => ({
+            plo: row.code || row.name || row.plo || row.title || '',
+            pi: normalizeListField(row.pi || row.pis || row.indicators || row.pi_list || row.description)
+        }))
+        .filter(item => item.plo);
+
+    if (fromRows.length > 0) return fromRows;
+
+    const selectedMajor = dbMajors.find(m => String(m.id) === String(majorId));
+    if (selectedMajor) {
+        const parsed = normalizeListField(selectedMajor.plo || selectedMajor.plos || selectedMajor.objective_plo);
+        if (parsed.length > 0) {
+            return parsed.map((plo, index) => ({
+                plo,
+                pi: [`PI${index + 1}.1`, `PI${index + 1}.2`, `PI${index + 1}.3`]
+            }));
+        }
+    }
+
+    return defaultPloPiCatalog;
+}
+
+function buildPloOptions(selected = '') {
+    return '<option value="">-- Chọn PLO --</option>' + getPloPiCatalog()
+        .map(item => `<option value="${h(item.plo)}" ${item.plo === selected ? 'selected' : ''}>${h(item.plo)}</option>`)
+        .join('');
+}
+
+function buildPiOptions(plo, selected = '') {
+    const selectedList = Array.isArray(selected) ? selected : normalizeListField(selected);
+    const catalog = getPloPiCatalog();
+    const found = catalog.find(item => item.plo === plo) || catalog[0] || { pi: [] };
+    return '<option value="">-- Chọn PI --</option>' + normalizeListField(found.pi)
+        .map(pi => `<option value="${h(pi)}" ${selectedList.includes(pi) ? 'selected' : ''}>${h(pi)}</option>`)
+        .join('');
+}
+
+function buildCloOptions(selectedValues = []) {
+    const selected = Array.isArray(selectedValues) ? selectedValues : normalizeListField(selectedValues);
+    const codes = [];
+    document.querySelectorAll('#cloTable tbody tr').forEach((tr, idx) => {
+        const code = tr.querySelector('.c-code')?.value.trim() || `CLO${idx + 1}`;
+        normalizeCloCodes(code, idx + 1).forEach(item => {
+            if (!codes.includes(item)) codes.push(item);
+        });
+    });
+    return codes.map(code => `<option value="${h(code)}" ${selected.includes(code) ? 'selected' : ''}>${h(code)}</option>`).join('');
+}
+
+function initSelect2Within(root) {
+    $(root).find('.select2-simple').select2({ width: '100%' });
+    $(root).find('.select2-multiple').select2({ width: '100%' });
+}
+
+// Phần này tạm nữa có db thay vào -------------------------------------------------------------------------------------------
+const assessmentMethods = ["Chuyên cần", "Kiểm tra thường xuyên", "Thi kết thúc"];
+
+const defaultPloPiCatalog = [
+    { plo: 'PLO1', pi: ['PI1.1', 'PI1.2', 'PI1.3'] },
+    { plo: 'PLO2', pi: ['PI2.1', 'PI2.2', 'PI2.3'] },
+    { plo: 'PLO3', pi: ['PI3.1', 'PI3.2', 'PI3.3'] }
+];
+const assessmentToolsByMethod = {
+    "Chuyên cần": ["Điểm danh", "Hỏi đáp", "Quan sát thái độ học tập"],
+    "Kiểm tra thường xuyên": ["Bài kiểm tra ngắn", "Bài tập cá nhân", "Bài tập nhóm", "Rubric", "Logbook", "OSCE/OSPE"],
+    "Thi kết thúc": ["Thi viết", "Thi trắc nghiệm", "Thi vấn đáp", "Ngân hàng câu hỏi", "Rubric"]
+};
+//-----------------------------------------------------------------------------------------------------------------------------
 const bloomDictionary = {
     "Kiến thức": [
         "1. Nhớ",
@@ -508,7 +620,6 @@ const bloomDictionary = {
     ]
 };
 
-// Hàm tự động fill thông tin giờ học khi chọn học phần từ hệ thống
 function extractCourseName() {
     const courseId = document.getElementById('courseSelect').value;
     if(!courseId) {
@@ -526,12 +637,12 @@ function extractCourseName() {
     if(target) {
         document.getElementById('courseName').value = target.name;
         document.getElementById('code').value = target.code;
-        document.getElementById('theory_hours').value = target.theory_hours;
+        document.getElementById('theory_hours').value = target.theory_hours || 0;
         document.getElementById('practical_hours').value = target.practical_hours;
 
         calculateTotalHours();
 
-        document.getElementById('credits_theory').value = Math.round(target.theory_hours / 15) || 0;
+        document.getElementById('credits_theory').value = Math.round((target.theory_hours || 0) / 15) || 0;
         document.getElementById('credits_practice').value = Math.round(target.practical_hours / 30) || 0;
         calculateTotalCredits();
     }
@@ -547,21 +658,36 @@ function calculateTotalHours() {
     const lt = parseInt(document.getElementById('theory_hours').value) || 0;
     const th = parseInt(document.getElementById('practical_hours').value) || 0;
     document.getElementById('total_hours').value = lt + th;
+    syncSelfStudyTotal();
 }
 
 function syncSelfStudyTotal() {
     const selfHours = document.querySelector('input[name="self_study_hours"]');
     const totalDisplay = document.getElementById('self_study_total_display');
+    const theoryHours = parseInt(document.getElementById('theory_hours')?.value) || 0;
     if (selfHours && totalDisplay) {
+        selfHours.value = theoryHours * 2;
         totalDisplay.value = parseInt(selfHours.value) || 0;
     }
+}
+
+function syncTheoryHoursFromTable() {
+    document.querySelectorAll('#theoryTopicTable tbody tr').forEach(tr => {
+        if (tr.classList.contains('is-intro')) return;
+        const classInput = tr.querySelector('.t-class');
+        if (!classInput || classInput.disabled) return;
+        const hasClassValue = String(classInput.value).trim() !== '';
+        const classHours = hasClassValue ? (parseFloat(classInput.value) || 0) : 0;
+        const selfInput = tr.querySelector('.t-self');
+        if (selfInput && !selfInput.disabled) selfInput.value = hasClassValue ? classHours * 2 : '';
+    });
+    calculateTotalHours();
 }
 
 let cloIndex = 0;
 let assessmentRowIndex = 0;
 
 function updateVerbsHint(selectEl) {
-    // Tìm hàng (tr) hiện tại của phần tử đang tương tác
     const tr = selectEl.closest('tr');
     const textarea = tr.querySelector('.c-desc');
     const hintEl = tr.querySelector('.verbs-hint');
@@ -569,7 +695,6 @@ function updateVerbsHint(selectEl) {
     let combinedHints = [];
     let placeholderHints = [];
     
-    // Quét qua tất cả các ô select Bloom trong hàng này
     tr.querySelectorAll('.sel-bloom-item').forEach(sel => {
         if (!sel.disabled && sel.value) {
             const domain = sel.getAttribute('data-domain');
@@ -617,12 +742,12 @@ function addCloRow() {
         const cbId = uid + '_d' + idx;
         domainHtml += `
             <div class="form-check mb-1">
-                <input class="form-check-input chk-domain" type="checkbox" value="${domain}" id="${cbId}"
-                       name="clo_domain_${rowId}[]"
+                <!-- - CLO linh vuc chi duoc chon mot nen dung radio thay cho checkbox. -->
+                <input class="form-check-input chk-domain" type="radio" value="${domain}" id="${cbId}"
+                       name="clo_domain_${rowId}"
                        onchange="toggleBloomSelect(this, '${domain}', '${uid}', ${idx})">
                 <label class="form-check-label" for="${cbId}">${domain}</label>
             </div>`;
-        // BỔ SUNG: Thêm thuộc tính data-domain và sự kiện onchange="updateVerbsHint(this)"
         bloomHtml += `
             <div class="mb-1">
                 <select class="form-select form-select-sm sel-bloom-item" id="${uid}_b${idx}" disabled
@@ -634,11 +759,11 @@ function addCloRow() {
             </div>`;
     });
 
-    // QUAN TRỌNG: Thêm một thẻ nhỏ <small class="verbs-hint"> dưới textarea để hiển thị từ gợi ý trực quan
     tr.innerHTML = `
         <td>
             <input type="hidden" name="clo_row_ids[]" value="${rowId}">
-            <input type="text" class="form-control c-code text-center fw-bold" name="clo_code[]" value="" placeholder="CLO1 hoặc CLO1, CLO2">
+            <!-- - Doi ma CLO se cap nhat cac select CLO o bang khac. -->
+            <input type="text" class="form-control c-code text-center fw-bold" name="clo_code[]" value="" placeholder="CLO1 hoặc CLO1, CLO2" oninput="syncCloToTables();">
         </td>
         <td>${domainHtml}</td>
         <td>${bloomHtml}</td>
@@ -690,6 +815,16 @@ function normalizeCloCodes(value, fallbackIndex) {
 }
 
 function toggleBloomSelect(checkbox, domain, uid, idx) {
+    // - Khi chon mot linh vuc CLO, tat cac muc Bloom cua linh vuc khac trong cung dong.
+    const tr = checkbox.closest('tr');
+    tr.querySelectorAll('.sel-bloom-item').forEach(otherSel => {
+        if (otherSel.id !== uid + '_b' + idx) {
+            otherSel.innerHTML = '<option value="">-- Chọn lĩnh vực trước --</option>';
+            otherSel.value = '';
+            otherSel.disabled = true;
+            otherSel.style.opacity = '0.45';
+        }
+    });
     const sel = document.getElementById(uid + '_b' + idx);
     if (checkbox.checked) {
         let opts = '<option value="">-- Chọn mức độ --</option>';
@@ -724,30 +859,79 @@ function addAssessmentRow() {
             <input type="hidden" name="assessment_row_ids[]" value="${rowId}">
             <input type="text" class="form-control a-clos" name="assessment_clos[]">
         </td>
-        <td><input type="text" class="form-control a-plo" name="assessment_plo_pi[]"></td>
+        <!-- - PLO chon tu danh muc PLO cua nganh, PI doi theo PLO. -->
+        <td><select class="form-select a-plo" name="assessment_plo[]" onchange="onAssessmentPloChange(this)">${buildPloOptions()}</select></td>
+        <!-- - PI cho chon nhieu va danh sach PI duoc nap theo PLO dang chon. -->
+        <td><select class="form-select a-pi select2-multiple" name="assessment_pi_${rowId}[]" multiple="multiple">${buildPiOptions('')}</select></td>
         <td>  
             <select class="form-select a-contribution" name="assessment_contribution[]">
                 <option value="">-- Chọn mức độ -- </option>
-                <option value="I">I – Giới thiệu (Introduce)</option>
-                <option value="R">R – Củng cố (Reinforce)</option>
-                <option value="M">M – Thành thạo (Master)</option>
-                <option value="A">A – Đánh giá (Assess)</option>
+                <option value="I">I – Giới thiệu</option>
+                <option value="R">R – Củng cố</option>
+                <option value="M">M – Thành thạo</option>
+                <option value="A">A – Đánh giá</option>
             </select>
         </td>
         <td>
-            <select class="form-select a-form select2-multiple" name="assessment_form_${rowId}[]" multiple="multiple">
+            <!-- - Hinh thuc danh gia chi duoc chon mot. -->
+            <select class="form-select a-form" name="assessment_form_${rowId}" onchange="onAssessmentFormChange(this)">
+                <option value="">-- Chọn hình thức --</option>
                 ${methodOptions}
             </select>
         </td>
-        <td><input type="text" class="form-control a-tool" name="assessment_tool[]" placeholder="Người dùng tự nhập công cụ"></td>
+        <td><select class="form-select a-tool select2-multiple" name="assessment_tool_${rowId}[]" multiple="multiple"></select></td>
         <td><input type="number" class="form-control a-weight" name="assessment_weight[]" value="0" min="0" max="100" oninput="onWeightInput(this)"></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
     `;
     tbody.appendChild(tr);
-    $(tr.querySelector('.select2-multiple')).select2({
-        width: '100%',
-        placeholder: "Chọn một hoặc nhiều hình thức"
+    $(tr.querySelector('.a-pi')).select2({ width: '100%', placeholder: "Chọn PI" });
+    $(tr.querySelector('.a-tool')).select2({ width: '100%', placeholder: "Chọn công cụ đánh giá" });
+    onAssessmentFormChange(tr.querySelector('.a-form'));
+}
+
+// - Cap nhat PI theo PLO va cong cu danh gia theo hinh thuc danh gia.
+function onAssessmentPloChange(selectEl) {
+    const tr = selectEl.closest('tr');
+    const piSelect = tr.querySelector('.a-pi');
+    // - Doi PLO thi xoa PI cu va nap lai danh muc PI tuong ung voi PLO moi.
+    $(piSelect).empty().append(buildPiOptions(selectEl.value)).val(null).trigger('change');
+}
+
+function refreshAssessmentPloPiOptions() {
+    document.querySelectorAll('#assessmentTable tbody tr').forEach(tr => {
+        const ploSelect = tr.querySelector('.a-plo');
+        const piSelect = tr.querySelector('.a-pi');
+        if (!ploSelect || !piSelect) return;
+        const oldPlo = ploSelect.value;
+        const oldPi = $(piSelect).val() || [];
+        ploSelect.innerHTML = buildPloOptions(oldPlo);
+        $(piSelect).empty().append(buildPiOptions(ploSelect.value, oldPi)).trigger('change');
     });
+}
+
+function getAssessmentToolsForMethod(method) {
+    const fromCatalog = dbAssessmentToolsCatalog
+        .filter(row => !method || [row.form, row.method, row.assessment_form, row.type].filter(Boolean).includes(method))
+        .map(row => row.name || row.title || row.tool || row.label)
+        .filter(Boolean);
+    const base = fromCatalog.length > 0 ? fromCatalog : (assessmentToolsByMethod[method] || []);
+    return [...new Set(base)];
+}
+
+function onAssessmentFormChange(selectEl) {
+    const tr = selectEl.closest('tr');
+    const toolSelect = tr.querySelector('.a-tool');
+    const selected = $(toolSelect).val() || [];
+    const options = getAssessmentToolsForMethod(selectEl.value)
+        .map(tool => `<option value="${h(tool)}" ${selected.includes(tool) ? 'selected' : ''}>${h(tool)}</option>`)
+        .join('');
+    $(toolSelect).empty().append(options).trigger('change');
+    onWeightInput(tr.querySelector('.a-weight'));
+}
+
+function syncCoordinatingBoard() {
+    const selectedLecturerIds = $('#coordinatingBoardSelect').val() || [];
+    return selectedLecturerIds;
 }
 
 function calcTotalWeight() {
@@ -781,78 +965,15 @@ function addSelfStudyRow() {
     tbody.appendChild(tr);
 }
 
-// function addTheoryRow() {
-//     const tbody = document.querySelector('#theoryTopicTable tbody');
-//     const tr = document.createElement('tr');
-
-//     // Tạo danh sách Sách/Giáo trình hỗ trợ tìm kiếm/gõ thêm
-//     let textbookOptions = `<option value="">-- Chọn giáo trình --</option>`;
-//     if (typeof dbBooks !== 'undefined' && dbBooks.length > 0) {
-//         dbBooks.forEach(b => { textbookOptions += `<option value="${b.title}">${b.title}</option>`; });
-//     }
-//     textbookOptions += `<option value="Option 1">Option 1</option><option value="Option 2">Option 2</option><option value="Option 3">Option 3</option>`;
-
-//     tr.innerHTML = `
-//         <td>
-//             <select class="form-select t-type select2-simple" onchange="reindexTheoryChaptersAndLessons()">
-//                 <option value="Chương">Chương</option>
-//                 <option value="Bài">Bài</option>
-//             </select>
-//             <input type="text" class="form-control t-chapter-label text-center fw-bold mt-1 bg-light" name="theory_chapter[]" readonly>
-//         </td>
-//         <td>
-//             <textarea class="form-control t-title" name="theory_title[]" rows="2" placeholder="Người dùng tự nhập nội dung bài giảng lý thuyết..."></textarea>
-//         </td>
-//         <td><input type="text" class="form-control t-method" name="theory_method[]" value="Học trên lớp"></td>
-//         <td><input type="number" class="form-control t-class" name="theory_class_hours[]" value="0" min="0"></td>
-//         <td><input type="number" class="form-control t-self" name="theory_self_hours[]" value="0" min="0"></td>
-//         <td><input type="text" class="form-control t-clos" name="theory_clos[]" placeholder="Tự nhập CLOs"></td>
-//         <td><select class="form-select t-textbook select2-searchable" name="theory_book[]">${textbookOptions}</select></td>
-//         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeTheoryRow(this)">Xóa</button></td>
-//     `;
-//     tbody.appendChild(tr);
-
-//     // Khởi tạo select2
-//     $(tr.querySelectorAll('.select2-simple')).select2({ width: '100%' });
-//     $(tr.querySelectorAll('.select2-searchable')).select2({ width: '100%', tags: true });
-
-//     reindexTheoryChaptersAndLessons();
-// }
-
 function removeTheoryRow(btn) {
     btn.closest('tr').remove();
     reindexTheoryChaptersAndLessons();
+    syncTheoryHoursFromTable();
 }
-
-// // Hàm xử lý đếm số độc lập: Chương chạy từ 1, 2, 3... Bài chạy từ 1, 2, 3... riêng biệt
-// function reindexTheoryChaptersAndLessons() {
-//     let chapterCount = 0;
-//     let lessonCount = 0;
-
-//     document.querySelectorAll('#theoryTopicTable tbody tr').forEach(tr => {
-//         const typeSelect = tr.querySelector('.t-type');
-//         if (!typeSelect) return;
-
-//         const type = typeSelect.value;
-//         if (type === "Chương") {
-//             chapterCount++;
-//             tr.querySelector('.t-chapter-label').value = `Chương ${chapterCount}`;
-//         } else if (type === "Bài") {
-//             lessonCount++;
-//             tr.querySelector('.t-chapter-label').value = `Bài ${lessonCount}`;
-//         }
-//     });
-// }
 
 function addTheoryRow(type = 'Bài') {
     const tbody = document.querySelector('#theoryTopicTable tbody');
     const tr = document.createElement('tr');
-
-    let textbookOptions = `<option value="">-- Chọn giáo trình --</option>`;
-    if (typeof dbBooks !== 'undefined' && dbBooks.length > 0) {
-        dbBooks.forEach(b => { textbookOptions += `<option value="${b.title}">${b.title}</option>`; });
-    }
-    textbookOptions += `<option value="Option 1">Option 1</option><option value="Option 2">Option 2</option><option value="Option 3">Option 3</option>`;
 
     const isChapter = type === 'Chương';
 
@@ -867,21 +988,24 @@ function addTheoryRow(type = 'Bài') {
         <td>
             <textarea class="form-control t-title" name="theory_title[]" rows="2" placeholder="${isChapter ? 'Tên chương...' : 'Nội dung bài giảng lý thuyết...'}"></textarea>
         </td>
-        <td class="t-extra"><input type="text" class="form-control t-method" name="theory_method[]" value="${isChapter ? '' : 'Học trên lớp'}" ${isChapter ? 'disabled' : ''}></td>
-        <td class="t-extra"><input type="number" class="form-control t-class" name="theory_class_hours[]" value="0" min="0" ${isChapter ? 'disabled' : ''}></td>
-        <td class="t-extra"><input type="number" class="form-control t-self" name="theory_self_hours[]" value="0" min="0" ${isChapter ? 'disabled' : ''}></td>
-        <td class="t-extra"><input type="number" class="form-control t-online" name="theory_online_hours[]" value="0" min="0" ${isChapter ? 'disabled' : ''}></td>
+        <!-- - Cac cot tuy chon mac dinh rong de PDF co the bo cot khong co du lieu. -->
+        <td class="t-extra"><input type="text" class="form-control t-method" name="theory_method[]" value="" ${isChapter ? 'disabled' : ''}></td>
+        <!-- - Cot so tiet tren lop co the de trong; khi nhap se cap nhat tong ly thuyet va tu hoc. -->
+        <td class="t-extra"><input type="number" class="form-control t-class" name="theory_class_hours[]" value="" min="0" oninput="syncTheoryHoursFromTable()" ${isChapter ? 'disabled' : ''}></td>
+        <td class="t-extra"><input type="number" class="form-control t-self bg-light" name="theory_self_hours[]" value="" min="0" readonly ${isChapter ? 'disabled' : ''}></td>
+        <td class="t-extra"><input type="number" class="form-control t-online" name="theory_online_hours[]" value="" min="0" ${isChapter ? 'disabled' : ''}></td>
         <td class="t-extra"><input type="text" class="form-control t-pedagogy" name="theory_pedagogy[]" placeholder="Tự nhập phương pháp..." ${isChapter ? 'disabled' : ''}></td>
-        <td class="t-extra"><input type="text" class="form-control t-clos" name="theory_clos[]" placeholder="Tự nhập CLOs" ${isChapter ? 'disabled' : ''}></td>
-        <td class="t-extra"><select class="form-select t-textbook select2-searchable" name="theory_book[]" ${isChapter ? 'disabled' : ''}>${textbookOptions}</select></td>
+        <!-- - CLO bang 6.1 chon nhieu CLO lay tu muc 4. -->
+        <td class="t-extra text-center"><select class="form-select t-clos select2-multiple" name="theory_clos_${Date.now()}[]" multiple="multiple" ${isChapter ? 'disabled' : ''}>${buildCloOptions()}</select></td>
         <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeTheoryRow(this)">Xóa</button></td>
     `;
     tbody.appendChild(tr);
 
-    $(tr.querySelectorAll('.select2-searchable')).select2({ width: '100%', tags: true });
+    $(tr.querySelectorAll('.select2-multiple')).select2({ width: '100%', placeholder: "Chọn CLO" });
 
     applyTheoryRowStyle(tr, type);
     reindexTheoryChaptersAndLessons();
+    syncTheoryHoursFromTable();
 }
 
 function onTheoryTypeChange(sel) {
@@ -891,12 +1015,19 @@ function onTheoryTypeChange(sel) {
 
     tr.querySelectorAll('.t-extra input, .t-extra select').forEach(el => {
         el.disabled = isChapter;
-        if (isChapter) el.value = el.tagName === 'SELECT' ? '' : '';
+        if (isChapter) {
+            if (el.tagName === 'SELECT') {
+                $(el).val(null).trigger('change');
+            } else {
+                el.value = '';
+            }
+        }
     });
     tr.querySelector('.t-title').placeholder = isChapter ? 'Tên chương...' : 'Nội dung bài giảng lý thuyết...';
 
     applyTheoryRowStyle(tr, type);
     reindexTheoryChaptersAndLessons();
+    syncTheoryHoursFromTable();
 }
 
 function applyTheoryRowStyle(tr, type) {
@@ -971,10 +1102,10 @@ function addCombinedRow() {
         <td class="text-center fw-bold combined-stt"></td>
         <td><textarea class="form-control c-content" name="combined_content[]" rows="1" placeholder="Nội dung chính"></textarea></td>
         <td><input type="text" class="form-control c-method" name="combined_method[]" placeholder="Hình thức dạy"></td>
-        <td><input type="number" class="form-control c-lt" name="combined_theory_hours[]" value="0" min="0"></td>
-        <td><input type="number" class="form-control c-th" name="combined_practical_hours[]" value="0" min="0"></td>
-        <td><input type="number" class="form-control c-online" name="combined_online_hours[]" value="0" min="0"></td>
-        <td><input type="number" class="form-control c-sh" name="combined_self_hours[]" value="0" min="0"></td>
+        <td><input type="number" class="form-control c-lt text-center" name="combined_theory_hours[]" value="0" min="0"></td>
+        <td><input type="number" class="form-control c-th text-center" name="combined_practical_hours[]" value="0" min="0"></td>
+        <td><input type="number" class="form-control c-online text-center" name="combined_online_hours[]" value="0" min="0"></td>
+        <td><input type="number" class="form-control c-sh text-center" name="combined_self_hours[]" value="0" min="0"></td>
         <td><input type="text" class="form-control c-pedagogy" name="combined_pedagogy[]" placeholder="Phương pháp dạy học"></td>
         <td><input type="text" class="form-control c-clos" name="combined_clos[]" placeholder="Tự nhập CLOs"></td>
         <td><select class="form-select c-facility select2-searchable" name="combined_facility[]">${facilityOptions}</select></td>
@@ -1058,6 +1189,8 @@ function reindexResourceTable(tableId) {
 // -------------------------------------------------------------
 function gatherJsonData() {
     console.log("%c--- BẮT ĐẦU KIỂM TRA TOÀN BỘ GIÁ TRỊ TRONG FORM TRƯỚC KHI LƯU ---", "color: #1a446c; font-weight: bold; font-size: 14px;");
+    // - Cap nhat gia tri Ban dieu phoi truoc khi dong goi va submit.
+    syncCoordinatingBoard();
 
     // 1. Thông tin học phần (year, major)
     year = document.getElementById('year')?.value || '', // new
@@ -1093,19 +1226,21 @@ function gatherJsonData() {
         expected_semester: document.getElementsByName('expected_semester')[0]?.value || '',
         expected_year: document.getElementsByName('expected_year')[0]?.value || '',
         department_in_charge: $(document.getElementsByName('department_in_charge[]')).val() || [],
-        coordinating_board: document.getElementsByName('coordinating_board')[0]?.value || '',
+        coordinating_board: $(document.getElementsByName('coordinating_board[]')).val() || [],
         faculty_in_charge: document.getElementsByName('faculty_in_charge')[0]?.value || '',
         description: document.getElementsByName('description')[0]?.value || '',
-        // objectives: document.getElementsByName('objectives')[0]?.value || '',  
+        
         objective_general: document.getElementsByName('objective_general')[0]?.value || '', // new
         objective_specific: document.getElementsByName('objective_specific')[0]?.value || '', // new
         objective_plo: document.getElementsByName('objective_plo')[0]?.value || '', // new
         grading_scale: document.getElementsByName('grading_scale')[0]?.value || ''
     };
+
+   
+
     console.log("1. Dữ liệu thông tin học phần cơ bản:");
     console.table(basicData);
 
-    // 2. Thu thập Chuẩn đầu ra (CLOs)
     // =============================================================
     // 2. THU THẬP CHUẨN ĐẦU RA (CLOs) - ĐÃ CHUẨN HÓA CHUỖI AN TOÀN
     // =============================================================
@@ -1156,24 +1291,27 @@ function gatherJsonData() {
         const aClosInput = tr.querySelector('.a-clos');
         const aClosVal = aClosInput ? aClosInput.value.trim() : '';
         
-        const ploInput = tr.querySelector('.a-plo');
-        const ploVal = ploInput ? ploInput.value.trim() : '';
+        // - Luu PLO va PI thanh chuoi PLO/PI de tuong thich voi cot plo_pi hien co.
+        const ploVal = tr.querySelector('.a-plo')?.value || '';
+        const piVal = ($(tr.querySelector('.a-pi')).val() || []).join(', ');
+        const ploPiVal = [ploVal, piVal].filter(Boolean).join(' / ');
 
         const contribution = tr.querySelector('.a-contribution')?.value || '';
         console.log("contribution: ", contribution);
 
-        const toolInput = tr.querySelector('.a-tool');
-        const toolVal = toolInput ? toolInput.value.trim() : '';
+        const toolVal = ($(tr.querySelector('.a-tool')).val() || []).join(', ');
 
         const weightInput = tr.querySelector('.a-weight');
         const weightVal = weightInput ? weightInput.value : 0;
 
-        const formVal = ($(tr.querySelector('.a-form')).val() || []).join(', ');
+        const formVal = tr.querySelector('.a-form')?.value || '';
 
         if (aClosVal !== '' || formVal !== '') {
             assessments.push({
                 clos: aClosVal,
-                plo_pi: ploVal,
+                plo: ploVal,
+                pi: piVal,
+                plo_pi: ploPiVal,
                 contribution: contribution, // new
                 form: formVal,
                 tool: toolVal,
@@ -1183,6 +1321,18 @@ function gatherJsonData() {
     });
     document.getElementById('assessments_json').value = JSON.stringify(assessments);
     console.log("3. Mảng Thành phần đánh giá đã đóng gói JSON:", assessments);
+
+    // - Kiem tra tong trong so Chuyen can + Kiem tra thuong xuyen khong nho hon 50% tong Thi ket thuc.
+    const nonFinalWeight = assessments
+        .filter(a => a.form !== 'Thi kết thúc')
+        .reduce((sum, a) => sum + (parseFloat(a.weight) || 0), 0);
+    const finalWeight = assessments
+        .filter(a => a.form === 'Thi kết thúc')
+        .reduce((sum, a) => sum + (parseFloat(a.weight) || 0), 0);
+    if (finalWeight > 0 && nonFinalWeight < finalWeight * 0.5) {
+        alert('Tổng trọng số Chuyên cần + Kiểm tra thường xuyên không được nhỏ hơn 50% tổng trọng số Thi kết thúc.');
+        return false;
+    }
 
     // 4. Thu thập Hoạt động tự học
     let selfStudy = [];
@@ -1240,8 +1390,9 @@ function gatherJsonData() {
             hours_self: parseFloat(tr.querySelector('.t-self')?.value) || 0,
             hours_online: parseFloat(tr.querySelector('.t-online')?.value) || 0,
             pedagogy: tr.querySelector('.t-pedagogy')?.value || '',
-            clos: tr.querySelector('.t-clos')?.value || '',
-            book: $(tr.querySelector('.t-textbook')).val() || ''
+            // - Lay nhieu CLO tu select multiple va bo cot sach/giao trinh.
+            clos: ($(tr.querySelector('.t-clos')).val() || []).join(', '),
+            book: ''
         });
     });
 
@@ -1359,10 +1510,15 @@ $(document).ready(function() {
         placeholder: '(Chọn ngành nền từ hệ thống)',
         allowClear: true,
         width: '100%'
+    }).on('change', function() {
+        // - Doi nganh thi nap lai danh muc PLO/PI cho bang 4.2.
+        refreshAssessmentPloPiOptions();
     });
 
     $('.select2-enable').select2({ width: '100%' });
     $('.select2-multiple').select2({ width: '100%' });
+    // - Ban dieu phoi co cach chon nhieu giong cac select hoc phan lien quan va luu lai thanh chuoi.
+    $('#coordinatingBoardSelect').on('change', syncCoordinatingBoard);
 
     function formatCourseSelection(state) {
         if (!state.id) { return state.text; }
@@ -1390,7 +1546,8 @@ $(document).ready(function() {
             <td class="text-center fw-bold text-secondary" style="font-size:13px;">
                 Bài 0<br><small>(Giới thiệu)</small>
             </td>
-            <td colspan="8" class="text-muted fst-italic ps-3">
+            <!-- - Dieu chinh colspan sau khi bo cot Ten sach/Giao trinh. -->
+            <td colspan="7" class="text-muted fst-italic ps-3">
                 Giới thiệu học phần &nbsp;–&nbsp; 0 tiết
                 <input type="hidden" name="theory_chapter[]" value="Bài 0">
                 <input type="hidden" name="theory_title[]" value="Giới thiệu học phần">
@@ -1400,7 +1557,6 @@ $(document).ready(function() {
                 <input type="hidden" name="theory_pedagogy[]" value="">
                 <input type="hidden" name="theory_clos[]" value="">
                 <input type="hidden" name="theory_method[]" value="">
-                <input type="hidden" name="theory_book[]" value="">
             </td>
             <td class="text-center text-muted" style="font-size:12px;">Mặc định</td>
         `;
@@ -1417,7 +1573,10 @@ $(document).ready(function() {
         extractCourseName();
     <?php endif; ?>
 
+    // - Bang 6.1 chi tu tinh tu hoc tung dong, khong ghi de o LT phan dau.
+    syncTheoryHoursFromTable();
     syncSelfStudyTotal();
+    syncCoordinatingBoard();
     document.querySelector('input[name="self_study_hours"]').addEventListener('input', syncSelfStudyTotal);
 });
 
@@ -1434,7 +1593,8 @@ function syncCloToTables() {
     cloCodes.forEach((code, i) => {
         if (i < assessTbody.rows.length) {
             const cloInput = assessTbody.rows[i].querySelector('.a-clos');
-            if (cloInput && cloInput.value.trim() === '') cloInput.value = code;
+            // - Tu dong nap lai dung CLO theo tung hang cua bang Bloom vao bang 5.2.
+            if (cloInput) cloInput.value = code;
         } else {
             assessmentRowIndex++;
             const rowId = assessmentRowIndex;
@@ -1444,27 +1604,33 @@ function syncCloToTables() {
                     <input type="hidden" name="assessment_row_ids[]" value="${rowId}">
                     <input type="text" class="form-control a-clos" name="assessment_clos[]" value="${code}">
                 </td>
-                <td><input type="text" class="form-control a-plo" name="assessment_plo_pi[]"></td>
+                <!-- - PLO/PI dong bo cho dong assessment tu sinh theo CLO. -->
+                <td><select class="form-select a-plo" name="assessment_plo[]" onchange="onAssessmentPloChange(this)">${buildPloOptions()}</select></td>
+                <!-- - PI dong bo la select2 multiple va thay doi theo PLO. -->
+                <td><select class="form-select a-pi select2-multiple" name="assessment_pi_${rowId}[]" multiple="multiple">${buildPiOptions('')}</select></td>
                 <td>
                     <select class="form-select a-contribution" name="assessment_contribution[]">
                         <option value="">-- Chọn mức độ --</option>
-                        <option value="I">I – Giới thiệu (Introduce)</option>
-                        <option value="R">R – Củng cố (Reinforce)</option>
-                        <option value="M">M – Thành thạo (Master)</option>
-                        <option value="A">A – Đánh giá (Assess)</option>
+                        <option value="I">I – Giới thiệu</option>
+                        <option value="R">R – Củng cố</option>
+                        <option value="M">M – Thành thạo</option>
+                        <option value="A">A – Đánh giá</option>
                     </select>
                 </td>
                 <td>
-                    <select class="form-select a-form select2-multiple" name="assessment_form_${rowId}[]" multiple="multiple">
+                    <select class="form-select a-form" name="assessment_form_${rowId}" onchange="onAssessmentFormChange(this)">
+                        <option value="">-- Chọn hình thức --</option>
                         ${methodOptions}
                     </select>
                 </td>
-                <td><input type="text" class="form-control a-tool" name="assessment_tool[]" placeholder="Người dùng tự nhập công cụ"></td>
+                <td><select class="form-select a-tool select2-multiple" name="assessment_tool_${rowId}[]" multiple="multiple"></select></td>
                 <td><input type="number" class="form-control a-weight" name="assessment_weight[]" value="0" min="0" max="100" oninput="onWeightInput(this)"></td>
                 <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
             `;
             assessTbody.appendChild(tr);
-            $(tr.querySelector('.select2-multiple')).select2({ width: '100%', placeholder: "Chọn một hoặc nhiều hình thức" });
+            $(tr.querySelector('.a-pi')).select2({ width: '100%', placeholder: "Chọn PI" });
+            $(tr.querySelector('.a-tool')).select2({ width: '100%', placeholder: "Chọn công cụ đánh giá" });
+            onAssessmentFormChange(tr.querySelector('.a-form'));
         }
     });
     while (assessTbody.rows.length > cloCodes.length) assessTbody.deleteRow(assessTbody.rows.length - 1);
@@ -1474,12 +1640,13 @@ function syncCloToTables() {
     cloCodes.forEach((code, i) => {
         if (i < ssTbody.rows.length) {
             const cloInput = ssTbody.rows[i].querySelector('.ss-clos');
-            if (cloInput && cloInput.value.trim() === '') cloInput.value = code;
+            // - Tu dong nap lai dung CLO theo tung hang cua bang Bloom vao bang 5.3.
+            if (cloInput) cloInput.value = code;
         } else {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><input type="text" class="form-control ss-activity" name="self_study_name[]" placeholder="Tự nhập hoạt động"></td>
-                <td><input type="text" class="form-control ss-clos" name="self_study_clos[]" value="${code}"></td>
+                <td><input type="text" class="form-control ss-clos text-center" name="self_study_clos[]" value="${code}"></td>
                 <td style="display:none;"><input type="number" class="form-control ss-duration" name="self_study_duration[]" value="0" min="0"></td>
                 <td><input type="text" class="form-control ss-method" name="self_study_method[]" placeholder="Phương pháp tự học"></td>
                 <td><input type="text" class="form-control ss-assess" name="self_study_assess[]" placeholder="Cách thức đánh giá"></td>
@@ -1490,6 +1657,12 @@ function syncCloToTables() {
         }
     });
     while (ssTbody.rows.length > cloCodes.length) ssTbody.deleteRow(ssTbody.rows.length - 1);
+
+    // - Cap nhat danh sach CLO cho cac select multiple o bang 6.1.
+    document.querySelectorAll('#theoryTopicTable .t-clos').forEach(select => {
+        const selected = $(select).val() || [];
+        $(select).html(buildCloOptions(selected)).trigger('change');
+    });
 }
 
 </script>

@@ -24,6 +24,8 @@ DROP TABLE IF EXISTS `assessment_forms`;
 DROP TABLE IF EXISTS `faculties_list`;
 DROP TABLE IF EXISTS `departments_list`;
 DROP TABLE IF EXISTS `module_departments`;
+DROP TABLE IF EXISTS `lecturers`;
+DROP TABLE IF EXISTS `course_coordinators`;
 
 CREATE TABLE `assessment_forms` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -260,6 +262,51 @@ CREATE TABLE `departments_list` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `lecturers` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(255) NOT NULL,
+  `email` VARCHAR(255) DEFAULT NULL,
+  `phone` VARCHAR(50) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `course_coordinators` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `module_id` INT NOT NULL,
+  `lecturer_id` INT NOT NULL,
+  FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`lecturer_id`) REFERENCES `lecturers`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `lecturers` (`name`) VALUES 
+('ThS. Nguyễn Văn A'),
+('TS. Trần Thị B'),
+('ThS. Phạm Minh C'),
+('PGS.TS. Lê Hoàng D');
+
+
+INSERT INTO `course_coordinators` (`module_id`, `lecturer_id`) VALUES 
+-- Học phần có ID = 1 (Môn đầu tiên trong CSDL) được điều phối bởi giảng viên 1 và 2
+(1, 1), 
+(1, 2),
+
+-- Học phần có ID = 2 được điều phối bởi giảng viên 2 và 3
+(2, 2),
+(2, 3),
+
+-- Học phần có ID = 3 chỉ có 1 người điều phối là giảng viên 4
+(3, 4),
+
+-- Học phần có ID = 94 (Môn Chăm sóc sức khỏe người bệnh của ngành Điều dưỡng trong SQL của bạn)
+-- được điều phối bởi giảng viên 1, 3 và 4
+(94, 1),
+(94, 3),
+(94, 4),
+
+-- Học phần có ID = 95 được điều phối bởi giảng viên 2
+(95, 2);
+
+
 
 -- Master data
 INSERT INTO `majors` (`id`, `name`) VALUES
