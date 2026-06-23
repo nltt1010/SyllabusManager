@@ -11,11 +11,15 @@ DROP TABLE IF EXISTS `theory_topic_clos`;
 DROP TABLE IF EXISTS `theory_topics`;
 DROP TABLE IF EXISTS `self_study_clos`;
 DROP TABLE IF EXISTS `self_study_activities`;
+DROP TABLE IF EXISTS `assessment_tool_relation`;
+DROP TABLE IF EXISTS `assessment_tools`;
 DROP TABLE IF EXISTS `assessment_clos`;
 DROP TABLE IF EXISTS `assessments`;
 DROP TABLE IF EXISTS `clos`;
 DROP TABLE IF EXISTS `module_relationships`;
 DROP TABLE IF EXISTS `modules`;
+DROP TABLE IF EXISTS `major_objectives`;
+DROP TABLE IF EXISTS `education_programs`;
 DROP TABLE IF EXISTS `facilities`;
 DROP TABLE IF EXISTS `courses`;
 DROP TABLE IF EXISTS `knowledge_blocks`;
@@ -35,6 +39,14 @@ CREATE TABLE `assessment_forms` (
 CREATE TABLE `majors` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `education_programs` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `major_id` INT NOT NULL,
+  `year` YEAR NOT NULL,
+  FOREIGN KEY (`major_id`) REFERENCES `majors`(`id`) ON DELETE CASCADE,
+  UNIQUE KEY `unique_major_year` (`major_id`, `year`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `knowledge_blocks` (
@@ -68,6 +80,7 @@ CREATE TABLE `facilities` (
 CREATE TABLE `modules` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `course_id` INT NULL,
+  `education_program_id` INT NULL,
   `code` VARCHAR(50) NOT NULL UNIQUE,
   `name` VARCHAR(255) NOT NULL,
   `type` ENUM('Không', 'Bắt buộc', 'Điều kiện', 'Tự chọn') NOT NULL DEFAULT 'Không',
@@ -94,7 +107,18 @@ CREATE TABLE `modules` (
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `faculty_id` INT NULL,
   FOREIGN KEY (`faculty_id`) REFERENCES `faculties_list`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`education_program_id`) REFERENCES `education_programs`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`course_id`) REFERENCES `courses`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `major_objectives` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `education_program_id` INT NOT NULL,
+  `general_objective` TEXT NULL,
+  `po_content` TEXT NULL,
+  `plo_content` TEXT NULL,
+  FOREIGN KEY (`education_program_id`) REFERENCES `education_programs`(`id`) ON DELETE CASCADE,
+  UNIQUE KEY `unique_program_objectives` (`education_program_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `module_relationships` (
@@ -119,9 +143,12 @@ CREATE TABLE `clos` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `module_id` INT NOT NULL,
   `code` VARCHAR(50) NOT NULL,
-  `description` TEXT NOT NULL,
+  `content` TEXT NOT NULL,
   `domain` VARCHAR(255) NULL,
   `bloom_level` VARCHAR(255) NULL,
+  `contribution_level` VARCHAR(10) NULL,
+  `pi_id` VARCHAR(255) NULL,
+  `plo_pi` VARCHAR(255) NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
   UNIQUE KEY `unique_module_clo` (`module_id`, `code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -131,13 +158,30 @@ CREATE TABLE `assessments` (
   `module_id` INT NOT NULL,
   `type` ENUM('Đánh giá thường xuyên', 'Đánh giá định kỳ', 'Thi cuối kỳ') NOT NULL,
   `component` VARCHAR(255) NULL,
+  `clos_text` TEXT NULL,
   `form` VARCHAR(255) NOT NULL,
   `tool` VARCHAR(255) NULL,
+  `contribution` VARCHAR(10) NULL,
   `weight` DECIMAL(5,2) NOT NULL DEFAULT 0.00,
   `plo_pi` VARCHAR(255) NULL,
   `assessment_form_id` INT NULL,
   FOREIGN KEY (`assessment_form_id`) REFERENCES `assessment_forms`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `assessment_tools` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `assessment_form` VARCHAR(100) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
+  UNIQUE KEY `unique_assessment_tool` (`assessment_form`, `name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `assessment_tool_relation` (
+  `assessment_id` INT NOT NULL,
+  `assessment_tool_id` INT NOT NULL,
+  PRIMARY KEY (`assessment_id`, `assessment_tool_id`),
+  FOREIGN KEY (`assessment_id`) REFERENCES `assessments`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`assessment_tool_id`) REFERENCES `assessment_tools`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `assessment_clos` (
@@ -152,6 +196,7 @@ CREATE TABLE `self_study_activities` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `module_id` INT NOT NULL,
   `activity_name` TEXT NOT NULL,
+  `clos_text` TEXT NULL,
   `duration_hours` INT DEFAULT 0,
   `method` TEXT NULL,
   `assessment_method` TEXT NULL,
@@ -170,13 +215,18 @@ CREATE TABLE `self_study_clos` (
 CREATE TABLE `theory_topics` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `module_id` INT NOT NULL,
+  `parent_id` INT NULL,
   `chapter` VARCHAR(100) NULL,
   `title` TEXT NOT NULL,
+  `delivery_mode` ENUM('in_person', 'online', 'hybrid') NULL,
   `method` VARCHAR(255) NULL,
   `class_hours` INT DEFAULT 0,
   `self_study_hours` INT DEFAULT 0,
-  `textbook_info` VARCHAR(255) NULL,
-  FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE
+  `online_hours` INT DEFAULT 0,
+  `teaching_method` VARCHAR(255) NULL,
+  `clos_text` TEXT NULL,
+  FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`parent_id`) REFERENCES `theory_topics`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `theory_topic_clos` (
@@ -192,8 +242,12 @@ CREATE TABLE `practical_topics` (
   `module_id` INT NOT NULL,
   `topic` VARCHAR(255) NULL,
   `content` TEXT NOT NULL,
+  `delivery_mode` ENUM('in_person', 'online', 'hybrid') NULL,
   `method` VARCHAR(255) NULL,
   `lab_hours` INT DEFAULT 0,
+  `online_hours` INT DEFAULT 0,
+  `teaching_method` VARCHAR(255) NULL,
+  `clos_text` TEXT NULL,
   `facility_id` INT NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`facility_id`) REFERENCES `facilities`(`id`) ON DELETE SET NULL
@@ -212,10 +266,14 @@ CREATE TABLE `combined_topics` (
   `module_id` INT NOT NULL,
   `sort_order` INT DEFAULT 1,
   `content` TEXT NOT NULL,
+  `delivery_mode` ENUM('in_person', 'online', 'hybrid') NULL,
   `method` VARCHAR(255) NULL,
   `theory_hours` INT DEFAULT 0,
   `practical_hours` INT DEFAULT 0,
+  `online_hours` INT DEFAULT 0,
   `self_study_hours` INT DEFAULT 0,
+  `teaching_method` VARCHAR(255) NULL,
+  `clos_text` TEXT NULL,
   `facility_id` INT NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`facility_id`) REFERENCES `facilities`(`id`) ON DELETE SET NULL
@@ -275,17 +333,18 @@ CREATE TABLE `course_coordinators` (
   `module_id` INT NOT NULL,
   `lecturer_id` INT NOT NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`lecturer_id`) REFERENCES `lecturers`(`id`) ON DELETE CASCADE
+  FOREIGN KEY (`lecturer_id`) REFERENCES `lecturers`(`id`) ON DELETE CASCADE,
+  UNIQUE KEY `unique_module_lecturer` (`module_id`, `lecturer_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `lecturers` (`name`) VALUES 
-('ThS. Nguyễn Văn A'),
-('TS. Trần Thị B'),
-('ThS. Phạm Minh C'),
-('PGS.TS. Lê Hoàng D');
+INSERT INTO `lecturers` (`id`, `name`) VALUES 
+(1, 'ThS. Nguyễn Văn A'),
+(2, 'TS. Trần Thị B'),
+(3, 'ThS. Phạm Minh C'),
+(4, 'PGS.TS. Lê Hoàng D');
 
 
-INSERT INTO `course_coordinators` (`module_id`, `lecturer_id`) VALUES 
+/* Legacy course coordinator seed moved below modules
 -- Học phần có ID = 1 (Môn đầu tiên trong CSDL) được điều phối bởi giảng viên 1 và 2
 (1, 1), 
 (1, 2),
@@ -304,7 +363,7 @@ INSERT INTO `course_coordinators` (`module_id`, `lecturer_id`) VALUES
 (94, 4),
 
 -- Học phần có ID = 95 được điều phối bởi giảng viên 2
-(95, 2);
+(95, 2); */
 
 
 
@@ -313,6 +372,16 @@ INSERT INTO `majors` (`id`, `name`) VALUES
 (1, 'Y khoa'),
 (2, 'Dược học'),
 (3, 'Điều dưỡng');
+
+INSERT INTO `education_programs` (`id`, `major_id`, `year`) VALUES
+(1, 1, 2026),
+(2, 2, 2026),
+(3, 3, 2026);
+
+INSERT INTO `major_objectives` (`education_program_id`, `general_objective`, `po_content`, `plo_content`) VALUES
+(1, 'Khung chuong trinh Y khoa huong den dao tao bac si co dao duc, nang luc chuyen mon va kha nang hoc tap suot doi.', 'Nguoi hoc dat cac muc tieu PO ve kien thuc co ban, nang luc lam sang, giao tiep va hanh nghe.', 'Nguoi hoc dat PLO ve kien thuc, ky nang, thai do va nang luc tu hoc.'),
+(2, 'Khung chuong trinh Duoc hoc huong den dao tao duoc si co nang luc chuyen mon, quan ly va tu van su dung thuoc.', 'Nguoi hoc dat cac muc tieu PO ve duoc lieu, bao che, duoc lam sang va quan ly duoc.', 'Nguoi hoc dat PLO ve kien thuc duoc, ky nang chuyen mon va phat trien nghe nghiep.'),
+(3, 'Khung chuong trinh Dieu duong huong den dao tao cu nhan co nang luc cham soc, giao duc suc khoe, quan ly va nghien cuu.', 'Nguoi hoc dat cac muc tieu PO ve cham soc nguoi benh, giao tiep, quan ly va lam viec nhom.', 'Nguoi hoc dat PLO ve kien thuc chuyen nganh, ky nang thuc hanh va pham chat nghe nghiep.');
 
 INSERT INTO `knowledge_blocks` (`id`, `major_id`, `name`, `parent_id`) VALUES
 (1, 1, 'Kiến thức giáo dục đại cương', NULL),
@@ -338,6 +407,17 @@ INSERT INTO `assessment_forms` (`id`, `name`) VALUES
 (4, 'OSCE/OSPE'),
 (5, 'Thi viết'),
 (6, 'Thi trắc nghiệm');
+
+INSERT INTO `assessment_tools` (`id`, `assessment_form`, `name`) VALUES
+(1, 'Chuyen can', 'Danh sach lop'),
+(2, 'Chuyen can', 'Diem danh'),
+(3, 'Chuyen can', 'Quan sat thai do hoc tap'),
+(4, 'Kiem tra thuong xuyen', 'Rubric'),
+(5, 'Kiem tra thuong xuyen', 'Bai kiem tra ngan'),
+(6, 'Kiem tra thuong xuyen', 'OSCE/OSPE'),
+(7, 'Thi ket thuc', 'Ngan hang cau hoi'),
+(8, 'Thi ket thuc', 'Thi viet'),
+(9, 'Thi ket thuc', 'Thi trac nghiem');
 
 INSERT INTO `faculties_list` (`id`, `name`) VALUES
 (1, 'Khoa Y'),
@@ -384,7 +464,7 @@ INSERT INTO `modules` (`id`, `course_id`, `code`, `name`, `type`, `credits`, `cr
 INSERT INTO `module_relationships` (`module_id`, `related_course_id`, `relation_type`) VALUES
 (2, 1, 'Học trước'), (3, 2, 'Học trước'), (4, 3, 'Song hành'), (6, 5, 'Học trước'), (9, 8, 'Học trước');
 
-INSERT INTO `clos` (`module_id`, `code`, `description`, `domain`, `bloom_level`) VALUES
+INSERT INTO `clos` (`module_id`, `code`, `content`, `domain`, `bloom_level`) VALUES
 (1, 'CLO1', 'Trình bày được kiến thức cốt lõi của học phần.', 'Kiến thức', '2. Hiểu'), (1, 'CLO2', 'Thực hiện được kỹ năng cơ bản liên quan học phần.', 'Kỹ năng', '3. Làm chính xác'), (1, 'CLO3', 'Thể hiện thái độ học tập nghiêm túc và an toàn.', 'Thái độ', '3. Nội tâm hóa'),
 (2, 'CLO1', 'Trình bày được kiến thức cốt lõi của học phần.', 'Kiến thức', '2. Hiểu'), (2, 'CLO2', 'Thực hiện được kỹ năng cơ bản liên quan học phần.', 'Kỹ năng', '3. Làm chính xác'), (2, 'CLO3', 'Thể hiện thái độ học tập nghiêm túc và an toàn.', 'Thái độ', '3. Nội tâm hóa'),
 (3, 'CLO1', 'Trình bày được kiến thức cốt lõi của học phần.', 'Kiến thức', '2. Hiểu'), (3, 'CLO2', 'Thực hiện được kỹ năng cơ bản liên quan học phần.', 'Kỹ năng', '3. Làm chính xác'), (3, 'CLO3', 'Thể hiện thái độ học tập nghiêm túc và an toàn.', 'Thái độ', '3. Nội tâm hóa'),
@@ -408,6 +488,13 @@ INSERT INTO `assessments` (`module_id`, `type`, `component`, `form`, `tool`, `we
 (9,'Đánh giá thường xuyên','Chuyên cần','Điểm danh, hỏi đáp','Danh sách lớp',10,'PLO1'),(9,'Đánh giá định kỳ','Kiểm tra giữa kỳ','Bài tập tình huống','Rubric',30,'PLO2'),(9,'Thi cuối kỳ','Thi kết thúc','Trắc nghiệm','Ngân hàng câu hỏi',60,'PLO1, PLO2'),
 (10,'Đánh giá thường xuyên','Chuyên cần','Điểm danh, hỏi đáp','Danh sách lớp',10,'PLO1'),(10,'Đánh giá định kỳ','Kiểm tra giữa kỳ','Bài tập tình huống','Rubric',30,'PLO2'),(10,'Thi cuối kỳ','Thi kết thúc','Trắc nghiệm','Ngân hàng câu hỏi',60,'PLO1, PLO2');
 
+INSERT INTO `assessment_tool_relation` (`assessment_id`, `assessment_tool_id`)
+SELECT `id`, 1 FROM `assessments` WHERE MOD(`id`, 3) = 1
+UNION ALL
+SELECT `id`, 4 FROM `assessments` WHERE MOD(`id`, 3) = 2
+UNION ALL
+SELECT `id`, 7 FROM `assessments` WHERE MOD(`id`, 3) = 0;
+
 INSERT INTO `assessment_clos` (`assessment_id`, `clo_id`)
 SELECT a.id, c.id FROM assessments a JOIN clos c ON c.module_id = a.module_id;
 
@@ -426,7 +513,7 @@ INSERT INTO `self_study_activities` (`module_id`, `activity_name`, `duration_hou
 INSERT INTO `self_study_clos` (`self_study_activity_id`, `clo_id`)
 SELECT s.id, c.id FROM self_study_activities s JOIN clos c ON c.module_id = s.module_id AND c.code IN ('CLO1', 'CLO2');
 
-INSERT INTO `theory_topics` (`module_id`, `chapter`, `title`, `method`, `class_hours`, `self_study_hours`, `textbook_info`) VALUES
+/* Legacy theory_topics seed disabled
 (1,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(1,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
 (2,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(2,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
 (3,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(3,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
@@ -437,6 +524,33 @@ INSERT INTO `theory_topics` (`module_id`, `chapter`, `title`, `method`, `class_h
 (8,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(8,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
 (9,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(9,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
 (10,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(10,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2');
+*/
+
+/* Legacy double-encoded theory_topics seed disabled
+(1,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(1,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
+(2,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(2,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
+(3,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(3,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
+(4,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(4,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
+(5,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(5,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
+(6,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(6,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
+(7,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(7,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
+(8,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(8,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
+(9,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(9,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
+(10,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(10,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10);
+
+*/
+
+INSERT INTO `theory_topics` (`module_id`, `chapter`, `title`, `method`, `class_hours`, `self_study_hours`) VALUES
+(1,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(1,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10),
+(2,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(2,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10),
+(3,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(3,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10),
+(4,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(4,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10),
+(5,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(5,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10),
+(6,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(6,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10),
+(7,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(7,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10),
+(8,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(8,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10),
+(9,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(9,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10),
+(10,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(10,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10);
 
 INSERT INTO `theory_topic_clos` (`theory_topic_id`, `clo_id`)
 SELECT t.id, c.id FROM theory_topics t JOIN clos c ON c.module_id = t.module_id AND c.code IN ('CLO1', 'CLO2');
@@ -790,6 +904,50 @@ INSERT INTO `modules` (`id`, `course_id`, `code`, `name`, `type`, `credits`, `cr
 (98, 93, 'NUR093', 'Điều dưỡng dựa vào bằng chứng', 'Điều kiện', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Điều dưỡng', 'Học kỳ I', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
 (99, 94, 'NUR094', 'Giải phẫu sinh lý ứng dụng trong Điều dưỡng', 'Điều kiện', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10'),
 (100, 100, 'NUR100', 'Kiểm định và Đảm bảo chất lượng Điều dưỡng', 'Điều kiện', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Điều dưỡng', 'Học kỳ II', '2026-2027', 'Bộ môn Điều dưỡng cơ bản', 'Khoa Điều dưỡng', 'Thang điểm 10');
+
+INSERT INTO `course_coordinators` (`module_id`, `lecturer_id`) VALUES
+(1, 1),
+(1, 2),
+(2, 2),
+(2, 3),
+(3, 4),
+(94, 1),
+(94, 3),
+(94, 4),
+(95, 2);
+
+UPDATE `modules` m
+JOIN `courses` c ON c.`id` = m.`course_id`
+SET m.`education_program_id` = CASE c.`major_id`
+  WHEN 1 THEN 1
+  WHEN 2 THEN 2
+  WHEN 3 THEN 3
+  ELSE NULL
+END
+WHERE m.`education_program_id` IS NULL;
+
+UPDATE `theory_topics`
+SET `delivery_mode` = 'in_person',
+    `teaching_method` = COALESCE(NULLIF(`teaching_method`, ''), `method`)
+WHERE `delivery_mode` IS NULL;
+
+UPDATE `practical_topics`
+SET `delivery_mode` = 'in_person',
+    `teaching_method` = COALESCE(NULLIF(`teaching_method`, ''), `method`)
+WHERE `delivery_mode` IS NULL;
+
+UPDATE `combined_topics`
+SET `delivery_mode` = 'in_person',
+    `teaching_method` = COALESCE(NULLIF(`teaching_method`, ''), `method`)
+WHERE `delivery_mode` IS NULL;
+
+UPDATE `theory_topics` child
+JOIN `theory_topics` parent
+  ON parent.`module_id` = child.`module_id`
+ AND parent.`chapter` LIKE 'Ch%'
+SET child.`parent_id` = parent.`id`
+WHERE child.`chapter` LIKE 'B%'
+  AND child.`parent_id` IS NULL;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
