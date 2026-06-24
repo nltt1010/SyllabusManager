@@ -4,7 +4,7 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 // 1. Lấy danh sách học phần nền từ bảng courses
-$courses = $pdo->query('SELECT id, code, name, total_hours, theory_hours, practical_hours FROM courses ORDER BY code')->fetchAll(PDO::FETCH_ASSOC);
+$courses = $pdo->query('SELECT id, major_id, code, name, total_hours, theory_hours, practical_hours FROM courses ORDER BY code')->fetchAll(PDO::FETCH_ASSOC);
 
 // 2. Lấy danh mục Cơ sở thực hành
 $facilitiesList = $pdo->query('SELECT name FROM facilities ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
@@ -32,6 +32,12 @@ try {
     $ploRows = [];
 }
 
+try {
+    $piRows = $pdo->query('SELECT * FROM pis ORDER BY plo_id, id')->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $piRows = [];
+}
+
 // - Lay danh muc cong cu danh gia neu CSDL hien co bang danh muc, neu khong se dung danh muc mac dinh tren giao dien.
 try {
     $assessmentToolsCatalog = $pdo->query('SELECT * FROM assessment_tools ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
@@ -47,6 +53,93 @@ try {
 }
 
 // Xử lý nếu được truyền course_id từ trang quản lý sang để auto-fill
+$courseTemplates = [];
+try {
+    $latestModuleRows = $pdo->query("
+        SELECT m.id, m.course_id, m.expected_semester, m.expected_year, m.faculty_in_charge, m.grading_scale
+        FROM modules m
+        INNER JOIN (
+            SELECT course_id, MAX(id) AS latest_id
+            FROM modules
+            WHERE course_id IS NOT NULL
+            GROUP BY course_id
+        ) latest ON latest.latest_id = m.id
+        ORDER BY m.course_id
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $moduleIdToCourseId = [];
+    foreach ($latestModuleRows as $moduleRow) {
+        $courseIdKey = (string)($moduleRow['course_id'] ?? '');
+        $moduleId = (int)($moduleRow['id'] ?? 0);
+        if ($courseIdKey === '' || $moduleId <= 0) {
+            continue;
+        }
+
+        $courseTemplates[$courseIdKey] = [
+            'expected_semester' => $moduleRow['expected_semester'] ?? '',
+            'expected_year' => $moduleRow['expected_year'] ?? '',
+            'faculty_in_charge' => $moduleRow['faculty_in_charge'] ?? '',
+            'grading_scale' => $moduleRow['grading_scale'] ?? '',
+            'prerequisite_ids' => [],
+            'parallel_ids' => [],
+            'previous_ids' => [],
+        ];
+        $moduleIdToCourseId[$moduleId] = $courseIdKey;
+    }
+
+    if (!empty($moduleIdToCourseId)) {
+        $placeholders = implode(', ', array_fill(0, count($moduleIdToCourseId), '?'));
+        $stmt = $pdo->prepare("
+            SELECT module_id, related_course_id, relation_type
+            FROM module_relationships
+            WHERE module_id IN ($placeholders)
+        ");
+        $stmt->execute(array_keys($moduleIdToCourseId));
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $relationRow) {
+            $moduleId = (int)($relationRow['module_id'] ?? 0);
+            $relatedCourseId = (int)($relationRow['related_course_id'] ?? 0);
+            $courseIdKey = $moduleIdToCourseId[$moduleId] ?? null;
+            if (!$courseIdKey || $relatedCourseId <= 0 || !isset($courseTemplates[$courseIdKey])) {
+                continue;
+            }
+
+            $rawRelationType = (string)($relationRow['relation_type'] ?? '');
+            $asciiRelationType = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $rawRelationType);
+            $normalizedRelationType = strtolower(trim(preg_replace('/\s+/', ' ', $asciiRelationType !== false ? $asciiRelationType : $rawRelationType)));
+
+            if (
+                strpos($normalizedRelationType, 'tien quyet') !== false ||
+                strpos($rawRelationType, 'Tiên quyết') !== false ||
+                strpos($rawRelationType, 'tiên quyết') !== false
+            ) {
+                $courseTemplates[$courseIdKey]['prerequisite_ids'][] = $relatedCourseId;
+            } elseif (
+                strpos($normalizedRelationType, 'song hanh') !== false ||
+                strpos($rawRelationType, 'Song hành') !== false ||
+                strpos($rawRelationType, 'song hành') !== false
+            ) {
+                $courseTemplates[$courseIdKey]['parallel_ids'][] = $relatedCourseId;
+            } elseif (
+                strpos($normalizedRelationType, 'hoc truoc') !== false ||
+                strpos($rawRelationType, 'Học trước') !== false ||
+                strpos($rawRelationType, 'học trước') !== false
+            ) {
+                $courseTemplates[$courseIdKey]['previous_ids'][] = $relatedCourseId;
+            }
+        }
+
+        foreach ($courseTemplates as &$templateRow) {
+            $templateRow['prerequisite_ids'] = array_values(array_unique(array_map('intval', $templateRow['prerequisite_ids'])));
+            $templateRow['parallel_ids'] = array_values(array_unique(array_map('intval', $templateRow['parallel_ids'])));
+            $templateRow['previous_ids'] = array_values(array_unique(array_map('intval', $templateRow['previous_ids'])));
+        }
+        unset($templateRow);
+    }
+} catch (Exception $e) {
+    $courseTemplates = [];
+}
+
 $selectedCourse = null;
 $course_id = $_GET['course_id'] ?? null;
 if($course_id){
@@ -73,6 +166,8 @@ if($course_id){
         .sub-section-title { font-weight: 600; color: #2c3e50; margin: 0; }
         .table th { background-color: #f8f9fa; color: #333; font-weight: 600; text-align: center; vertical-align: middle; font-size: 14px; }
         .form-helper { font-size: 12px; color: #6c757d; display: block; margin-top: 4px; }
+        .select2-container--default .select2-selection.readonly-select2 { background-color: #e9ecef; cursor: default; }
+        .select2-container--default .select2-selection.readonly-select2 .select2-selection__choice__remove { display: none; }
 
         /* Bảng 6.1 */
         #theoryTopicTable tbody tr.is-chapter { background-color: #eaf0fb; }
@@ -111,7 +206,7 @@ if($course_id){
                 <select id="majorSelect" name="major_id" class="form-select">
                     <option value="">-- Chọn ngành --</option>
                     <?php foreach($majors as $m): ?>
-                        <option value="<?= $m['id'] ?>">
+                        <option value="<?= $m['id'] ?>" <?= ($selectedCourse && (int)$selectedCourse['major_id'] === (int)$m['id']) ? 'selected' : '' ?>>
                             <?= htmlspecialchars($m['name']) ?>
                         </option>
                     <?php endforeach; ?>
@@ -152,8 +247,8 @@ if($course_id){
                 <label class="form-label fw-bold">Tổng số tín chỉ (Tổng / LT / TH):</label>
                 <div class="input-group">
                     <input type="number" id="credits" name="credits" class="form-control bg-light" placeholder="Tổng số TC" readonly min="0">
-                    <input type="number" id="credits_theory" name="credits_theory" class="form-control" placeholder="Lý thuyết" min="0" oninput="calculateTotalCredits();">
-                    <input type="number" id="credits_practice" name="credits_practice" class="form-control" placeholder="Thực hành" min="0" oninput="calculateTotalCredits();">
+                    <input type="number" id="credits_theory" name="credits_theory" class="form-control bg-light" placeholder="Lý thuyết" min="0" oninput="calculateTotalCredits();" readonly>
+                    <input type="number" id="credits_practice" name="credits_practice" class="form-control bg-light" placeholder="Thực hành" min="0" oninput="calculateTotalCredits();" readonly>
                 </div>
             </div>
             <div class="col-md-4">
@@ -161,8 +256,8 @@ if($course_id){
                 <div class="input-group">
                     <input type="number" id="total_hours" name="total_hours" class="form-control bg-light" placeholder="Tổng tiết" readonly min="0">
                     <!-- - Cho nhap LT truc tiep; So gio tu hoc se tu dong lay LT nhan 2. -->
-                    <input type="number" id="theory_hours" name="theory_hours" class="form-control" placeholder="Lý thuyết" min="0" oninput="calculateTotalHours();">
-                    <input type="number" id="practical_hours" name="practical_hours" class="form-control" placeholder="Thực hành" min="0" oninput="calculateTotalHours();">
+                    <input type="number" id="theory_hours" name="theory_hours" class="form-control bg-light" placeholder="Lý thuyết" min="0" oninput="calculateTotalHours();" readonly>
+                    <input type="number" id="practical_hours" name="practical_hours" class="form-control bg-light" placeholder="Thực hành" min="0" oninput="calculateTotalHours();" readonly>
                 </div>
             </div>
             <div class="col-md-4">
@@ -173,20 +268,21 @@ if($course_id){
 
             <div class="col-md-6">
                 <label class="form-label fw-bold">Đối tượng người học (dự kiến):</label>
-                <input type="text" name="target_programs" class="form-control" placeholder="Nhập các đối tượng, cách nhau bằng dấu phẩy (,)">
+                <input type="text" id="targetProgramsInput" name="target_programs" class="form-control bg-light" placeholder="Nhập các đối tượng, cách nhau bằng dấu phẩy (,)" readonly>
                 <span class="form-helper">Ví dụ: Sinh viên Y chính quy năm 1, Sinh viên Dược năm 1</span>
             </div>
             <div class="col-md-6">
                 <label class="form-label fw-bold">Học kỳ và năm dự kiến học:</label>
                 <div class="input-group">
-                    <input type="text" name="expected_semester" class="form-control" placeholder="Học kỳ (Ví dụ: Học kỳ I)">
-                    <input type="text" name="expected_year" class="form-control" placeholder="Năm học (Ví dụ: 2026-2027)">
+                    <input type="text" id="expectedSemesterInput" name="expected_semester" class="form-control bg-light" placeholder="Học kỳ (Ví dụ: Học kỳ I)" readonly>
+                    <input type="text" id="expectedYearInput" name="expected_year" class="form-control bg-light" placeholder="Năm học (Ví dụ: 2026-2027)" readonly>
                 </div>
             </div>
 
             <div class="col-md-4">
                 <label class="form-label fw-bold">Học phần tiên quyết:</label>
-                <select name="prerequisite_modules[]" class="form-select select2-course" multiple="multiple" data-placeholder="-- Chọn học phần --">
+                <textarea id="prerequisiteModulesDisplay" class="form-control bg-light" rows="2" placeholder="Tự động lấy theo học phần nền đã chọn" readonly></textarea>
+                <select id="prerequisiteModulesSelect" name="prerequisite_modules[]" class="form-select" multiple="multiple" style="display:none;">
                     <?php foreach($courses as $c): ?>
                         <option value="<?= h($c['id']) ?>" data-code="<?= h($c['code']) ?>"><?= h($c['code']) ?> - <?= h($c['name']) ?></option>
                     <?php endforeach; ?>
@@ -194,7 +290,8 @@ if($course_id){
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Học phần song hành:</label>
-                <select name="parallel_modules[]" class="form-select select2-course" multiple="multiple" data-placeholder="-- Chọn học phần --">
+                <textarea id="parallelModulesDisplay" class="form-control bg-light" rows="2" placeholder="Tự động lấy theo học phần nền đã chọn" readonly></textarea>
+                <select id="parallelModulesSelect" name="parallel_modules[]" class="form-select" multiple="multiple" style="display:none;">
                     <?php foreach($courses as $c): ?>
                         <option value="<?= h($c['id']) ?>" data-code="<?= h($c['code']) ?>"><?= h($c['code']) ?> - <?= h($c['name']) ?></option>
                     <?php endforeach; ?>
@@ -202,7 +299,8 @@ if($course_id){
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Học phần học trước:</label>
-                <select name="previous_modules[]" class="form-select select2-course" multiple="multiple" data-placeholder="-- Chọn học phần --">
+                <textarea id="previousModulesDisplay" class="form-control bg-light" rows="2" placeholder="Tự động lấy theo học phần nền đã chọn" readonly></textarea>
+                <select id="previousModulesSelect" name="previous_modules[]" class="form-select" multiple="multiple" style="display:none;">
                     <?php foreach($courses as $c): ?>
                         <option value="<?= h($c['id']) ?>" data-code="<?= h($c['code']) ?>"><?= h($c['code']) ?> - <?= h($c['name']) ?></option>
                     <?php endforeach; ?>
@@ -211,7 +309,7 @@ if($course_id){
 
             <div class="col-md-4">
                 <label class="form-label fw-bold">Bộ môn tham gia giảng dạy:</label>
-                <select name="department_in_charge[]" class="form-select select2-multiple" multiple="multiple" data-placeholder="-- Chọn Bộ môn giảng dạy --">
+                <select id="departmentInChargeSelect" name="department_in_charge[]" class="form-select select2-multiple" multiple="multiple" data-placeholder="-- Chọn Bộ môn giảng dạy --">
                     <?php foreach($departmentsList as $dep): ?>
                         <option value="<?= h($dep['id']) ?>"><?= h($dep['name']) ?></option>
                     <?php endforeach; ?>
@@ -219,7 +317,7 @@ if($course_id){
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Ban điều phối học phần:</label>
-                <select name="coordinating_board[]" class="form-select select2-multiple" multiple="multiple" data-placeholder="-- Chọn ban điều phối --">
+                <select id="coordinatingBoardSelect" name="coordinating_board[]" class="form-select select2-multiple" multiple="multiple" data-placeholder="-- Chọn ban điều phối --">
                     <?php foreach($lecturersList as $lecturer): ?>
                         <?php 
                             // Kiểm tra xem giảng viên này trước đó có được gán vào môn này không
@@ -232,8 +330,8 @@ if($course_id){
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Khoa phụ trách:</label>
-                <select name="faculty_in_charge" class="form-select select2-enable" multiple="multiple" data-placeholder="-- Chọn Khoa phụ trách --">
-                    <!-- <option value="">-- Chọn Khoa phụ trách --</option> -->
+                <textarea id="facultyInChargeDisplay" class="form-control bg-light" rows="2" placeholder="Tự động lấy theo học phần nền đã chọn" readonly></textarea>
+                <select id="facultyInChargeSelect" name="faculty_in_charge[]" class="form-select" multiple="multiple" style="display:none;">
                     <?php foreach($facultiesList as $fac): ?>
                         <option value="<?= h($fac) ?>"><?= h($fac) ?></option>
                     <?php endforeach; ?>
@@ -290,7 +388,7 @@ if($course_id){
             <div class="sub-section-title">5.1. Thang điểm lượng giá</div>
         </div>
         <div class="mb-3">
-            <textarea name="grading_scale" class="form-control" rows="2" placeholder="Nhập thông tin quy định thang điểm lý thuyết / thực hành (Dạng chữ hoặc số)..."></textarea>
+            <textarea id="gradingScaleInput" name="grading_scale" class="form-control bg-light" rows="2" placeholder="Nhập thông tin quy định thang điểm lý thuyết / thực hành (Dạng chữ hoặc số)..." readonly></textarea>
         </div>
 
         <div class="sub-section-header">
@@ -479,6 +577,8 @@ const dbBooks = <?php echo json_encode($booksCatalog); ?>;
 const dbCoursesList = <?php echo json_encode($courses); ?>;
 const dbMajors = <?php echo json_encode($majors); ?>;
 const dbPloRows = <?php echo json_encode($ploRows); ?>;
+const dbPiRows = <?php echo json_encode($piRows); ?>;
+const dbCourseTemplates = <?php echo json_encode($courseTemplates, JSON_UNESCAPED_UNICODE); ?>;
 const dbAssessmentToolsCatalog = <?php echo json_encode($assessmentToolsCatalog); ?>;
 const verbsDictionary = {
     "Kiến thức": {
@@ -523,14 +623,157 @@ function normalizeListField(value) {
         .filter(Boolean);
 }
 
+function getCourseTemplate(courseId) {
+    return dbCourseTemplates[String(courseId)] || null;
+}
+
+function setHiddenSelectValues(selectId, values) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    const selectedValues = (Array.isArray(values) ? values : normalizeListField(values))
+        .map(value => String(value).trim())
+        .filter(Boolean);
+
+    Array.from(select.options).forEach(option => {
+        option.selected = selectedValues.includes(String(option.value));
+    });
+}
+
+function setReadonlyFieldValue(fieldId, value) {
+    const field = document.getElementById(fieldId);
+    if (field) field.value = value || '';
+}
+
+function buildCourseDisplayByIds(ids) {
+    return (Array.isArray(ids) ? ids : normalizeListField(ids))
+        .map(id => {
+            const course = dbCoursesList.find(item => String(item.id) === String(id));
+            if (!course) return '';
+            return [course.code, course.name].filter(Boolean).join(' - ');
+        })
+        .filter(Boolean)
+        .join(', ');
+}
+
+function clearReadonlyCourseMetadata() {
+    setReadonlyFieldValue('expectedSemesterInput', '');
+    setReadonlyFieldValue('expectedYearInput', '');
+    setReadonlyFieldValue('gradingScaleInput', '');
+    setReadonlyFieldValue('prerequisiteModulesDisplay', '');
+    setReadonlyFieldValue('parallelModulesDisplay', '');
+    setReadonlyFieldValue('previousModulesDisplay', '');
+    setReadonlyFieldValue('facultyInChargeDisplay', '');
+    setHiddenSelectValues('prerequisiteModulesSelect', []);
+    setHiddenSelectValues('parallelModulesSelect', []);
+    setHiddenSelectValues('previousModulesSelect', []);
+    setHiddenSelectValues('facultyInChargeSelect', []);
+}
+
+function syncReadonlyCourseMetadata() {
+    syncTargetProgramsFromMajor();
+    clearReadonlyCourseMetadata();
+
+    const courseId = document.getElementById('courseSelect')?.value || '';
+    if (!courseId) {
+        syncExpectedYearFromYear();
+        return;
+    }
+
+    const template = getCourseTemplate(courseId);
+    if (!template) {
+        syncExpectedYearFromYear();
+        return;
+    }
+
+    const prerequisiteIds = normalizeListField(template.prerequisite_ids);
+    const parallelIds = normalizeListField(template.parallel_ids);
+    const previousIds = normalizeListField(template.previous_ids);
+    const facultyValues = normalizeListField(template.faculty_in_charge);
+
+    setReadonlyFieldValue('expectedSemesterInput', template.expected_semester || '');
+    setReadonlyFieldValue('expectedYearInput', template.expected_year || '');
+    setReadonlyFieldValue('gradingScaleInput', template.grading_scale || '');
+
+    setHiddenSelectValues('prerequisiteModulesSelect', prerequisiteIds);
+    setHiddenSelectValues('parallelModulesSelect', parallelIds);
+    setHiddenSelectValues('previousModulesSelect', previousIds);
+    setHiddenSelectValues('facultyInChargeSelect', facultyValues);
+
+    setReadonlyFieldValue('prerequisiteModulesDisplay', buildCourseDisplayByIds(prerequisiteIds));
+    setReadonlyFieldValue('parallelModulesDisplay', buildCourseDisplayByIds(parallelIds));
+    setReadonlyFieldValue('previousModulesDisplay', buildCourseDisplayByIds(previousIds));
+    setReadonlyFieldValue('facultyInChargeDisplay', facultyValues.join(', '));
+    syncExpectedYearFromYear();
+}
+
+function refreshCourseOptionsByMajor() {
+    const majorId = document.getElementById('majorSelect')?.value || '';
+    const courseSelect = document.getElementById('courseSelect');
+    if (!courseSelect) return;
+
+    const selectedCourseId = courseSelect.value;
+    const filteredCourses = dbCoursesList.filter(course =>
+        !majorId || String(course.major_id || '') === String(majorId)
+    );
+
+    courseSelect.innerHTML = '<option value="">-- Chọn học phần --</option>' + filteredCourses
+        .map(course => `<option value="${h(course.id)}" data-code="${h(course.code)}">${h(course.code)} - ${h(course.name)}</option>`)
+        .join('');
+
+    const hasSelectedCourse = filteredCourses.some(course => String(course.id) === String(selectedCourseId));
+    courseSelect.value = hasSelectedCourse ? selectedCourseId : '';
+
+    $('#courseSelect').trigger('change.select2');
+    extractCourseName();
+}
+
+function syncTargetProgramsFromMajor() {
+    const majorId = document.getElementById('majorSelect')?.value || '';
+    const targetProgramsInput = document.getElementById('targetProgramsInput');
+    if (!targetProgramsInput) return;
+
+    const selectedMajor = dbMajors.find(major => String(major.id) === String(majorId));
+    const baseValue = selectedMajor
+        ? (selectedMajor.target_programs || selectedMajor.target_program || selectedMajor.name || '')
+        : '';
+    const trimmedValue = String(baseValue).trim();
+
+    targetProgramsInput.value = trimmedValue
+        ? (/^sinh vien\b/i.test(trimmedValue) ? trimmedValue : `Sinh viên ${trimmedValue}`)
+        : '';
+}
+
+function syncExpectedYearFromYear() {
+    const yearSelectValue = parseInt(document.getElementById('year')?.value || '', 10);
+    const expectedYearInput = document.getElementById('expectedYearInput');
+    if (!expectedYearInput) return;
+
+    if (!Number.isFinite(yearSelectValue)) {
+        expectedYearInput.value = '';
+        return;
+    }
+
+    expectedYearInput.value = `${yearSelectValue}-${yearSelectValue + 1}`;
+}
+
 function getPloPiCatalog() {
     const majorId = document.getElementById('majorSelect')?.value || '';
     const fromRows = dbPloRows
         .filter(row => !majorId || String(row.major_id || row.majorId || '') === String(majorId) || !row.major_id)
-        .map(row => ({
-            plo: row.code || row.name || row.plo || row.title || '',
-            pi: normalizeListField(row.pi || row.pis || row.indicators || row.pi_list || row.description)
-        }))
+        .map((row, index) => {
+            const piFromTable = dbPiRows
+                .filter(piRow => String(piRow.plo_id || piRow.ploId || '') === String(row.id || row.plo_id || row.ploId || ''))
+                .map(piRow => piRow.code || piRow.name || piRow.pi || piRow.title || '')
+                .filter(Boolean);
+            const fallbackPi = normalizeListField(row.pi || row.pis || row.indicators || row.pi_list || row.description);
+            const resolvedPi = piFromTable.length > 0 ? piFromTable : fallbackPi;
+
+            return {
+                plo: row.code || row.name || row.plo || row.title || '',
+                pi: resolvedPi.length > 0 ? resolvedPi : [`PI${index + 1}.1`, `PI${index + 1}.2`, `PI${index + 1}.3`]
+            };
+        })
         .filter(item => item.plo);
 
     if (fromRows.length > 0) return fromRows;
@@ -631,6 +874,7 @@ function extractCourseName() {
         document.getElementById('credits').value = '';
         document.getElementById('credits_theory').value = '';
         document.getElementById('credits_practice').value = '';
+        syncReadonlyCourseMetadata();
         return;
     }
     const target = dbCoursesList.find(x => x.id == courseId);
@@ -646,6 +890,7 @@ function extractCourseName() {
         document.getElementById('credits_practice').value = Math.round(target.practical_hours / 30) || 0;
         calculateTotalCredits();
     }
+    syncReadonlyCourseMetadata();
 }
 
 function calculateTotalCredits() {
@@ -1225,9 +1470,9 @@ function gatherJsonData() {
         target_programs: document.getElementsByName('target_programs')[0]?.value || '',
         expected_semester: document.getElementsByName('expected_semester')[0]?.value || '',
         expected_year: document.getElementsByName('expected_year')[0]?.value || '',
-        department_in_charge: $(document.getElementsByName('department_in_charge[]')).val() || [],
-        coordinating_board: $(document.getElementsByName('coordinating_board[]')).val() || [],
-        faculty_in_charge: document.getElementsByName('faculty_in_charge')[0]?.value || '',
+        department_in_charge: $('#departmentInChargeSelect').val() || [],
+        coordinating_board: $('#coordinatingBoardSelect').val() || [],
+        faculty_in_charge: $('#facultyInChargeSelect').val() || [],
         description: document.getElementsByName('description')[0]?.value || '',
         
         objective_general: document.getElementsByName('objective_general')[0]?.value || '', // new
@@ -1512,8 +1757,16 @@ $(document).ready(function() {
         width: '100%'
     }).on('change', function() {
         // - Doi nganh thi nap lai danh muc PLO/PI cho bang 4.2.
+        syncTargetProgramsFromMajor();
+        refreshCourseOptionsByMajor();
         refreshAssessmentPloPiOptions();
     });
+
+    $('#year').on('change', syncExpectedYearFromYear);
+
+    syncTargetProgramsFromMajor();
+    refreshCourseOptionsByMajor();
+    syncExpectedYearFromYear();
 
     $('.select2-enable').select2({ width: '100%' });
     $('.select2-multiple').select2({ width: '100%' });
