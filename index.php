@@ -4,7 +4,50 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 // 1. Lấy danh sách học phần nền từ bảng courses
-$courses = $pdo->query('SELECT id, code, name, total_hours, theory_hours, practical_hours FROM courses ORDER BY code')->fetchAll(PDO::FETCH_ASSOC);
+$courses = $pdo->query('SELECT id, major_id, code, name, total_hours, theory_hours, practical_hours FROM courses ORDER BY code')->fetchAll(PDO::FETCH_ASSOC);
+
+// Lấy thông tin mapping Năm -> Ngành
+$eduPrograms = $pdo->query('SELECT id, major_id, year FROM education_programs')->fetchAll(PDO::FETCH_ASSOC);
+
+// Lấy thông tin từ khung chương trình (bảng modules) để auto-fill
+$modulesData = $pdo->query('SELECT * FROM modules')->fetchAll(PDO::FETCH_ASSOC);
+
+// Lấy danh sách các học phần quan hệ (tiên quyết, song hành, học trước)
+$moduleRels = $pdo->query('SELECT module_id, related_course_id, relation_type FROM module_relationships')->fetchAll(PDO::FETCH_ASSOC);
+
+// Lấy danh sách hình thức đánh giá, công cụ đánh giá, PLO/PI
+$assessmentFormsList = $pdo->query('SELECT name FROM assessment_forms ORDER BY id LIMIT 3')->fetchAll(PDO::FETCH_COLUMN);
+
+$assessmentToolsData = $pdo->query('SELECT assessment_form, name FROM assessment_tools ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
+$assessmentToolsMap = [];
+foreach ($assessmentToolsData as $row) {
+    if (!isset($assessmentToolsMap[$row['assessment_form']])) {
+        $assessmentToolsMap[$row['assessment_form']] = [];
+    }
+    $assessmentToolsMap[$row['assessment_form']][] = $row['name'];
+}
+
+$ploPiData = $pdo->query('
+    SELECT p.code as plo, pi.code as pi
+    FROM plo p
+    LEFT JOIN plo_pi_relation r ON p.id = r.plo_id
+    LEFT JOIN pi ON r.pi_id = pi.id
+    ORDER BY p.id, pi.id
+')->fetchAll(PDO::FETCH_ASSOC);
+
+$ploPiMap = [];
+foreach ($ploPiData as $row) {
+    if (!isset($ploPiMap[$row['plo']])) {
+        $ploPiMap[$row['plo']] = [];
+    }
+    if ($row['pi']) {
+        $ploPiMap[$row['plo']][] = $row['pi'];
+    }
+}
+$defaultPloPiList = [];
+foreach ($ploPiMap as $plo => $pis) {
+    $defaultPloPiList[] = ['plo' => $plo, 'pi' => $pis];
+}
 
 // 2. Lấy danh mục Cơ sở thực hành
 $facilitiesList = $pdo->query('SELECT name FROM facilities ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
@@ -98,8 +141,8 @@ if($course_id){
                 <label for="year" class="form-label fw-bold">Chọn hoặc nhập năm:</label>
                 <select name="year" id="year" class="form-select">
                     <option value="">-- Chọn năm --</option>
-                    <?php for ($y = date('Y') + 5; $y >= 2000; $y--): ?>
-                        <option value="<?= $y ?>" <?= $y == date('Y') ? 'selected' : '' ?>>
+                    <?php for ($y = 2026; $y >= 2022; $y--): ?>
+                        <option value="<?= $y ?>" <?= $y == 2026 ? 'selected' : '' ?>>
                             <?= $y ?>
                         </option>
                     <?php endfor; ?>
@@ -478,8 +521,17 @@ const dbFacilities = <?php echo json_encode($facilitiesList); ?>;
 const dbBooks = <?php echo json_encode($booksCatalog); ?>;
 const dbCoursesList = <?php echo json_encode($courses); ?>;
 const dbMajors = <?php echo json_encode($majors); ?>;
+const dbEduPrograms = <?php echo json_encode($eduPrograms); ?>;
+const dbModules = <?php echo json_encode($modulesData); ?>;
+const dbModuleRels = <?php echo json_encode($moduleRels); ?>;
 const dbPloRows = <?php echo json_encode($ploRows); ?>;
 const dbAssessmentToolsCatalog = <?php echo json_encode($assessmentToolsCatalog); ?>;
+
+// Dữ liệu lấy từ CSDL thay cho hardcode
+const assessmentMethods = <?php echo json_encode($assessmentFormsList); ?>;
+const defaultPloPiCatalog = <?php echo json_encode($defaultPloPiList); ?>;
+const assessmentToolsByMethod = <?php echo json_encode($assessmentToolsMap); ?>;
+
 const verbsDictionary = {
     "Kiến thức": {
         "1. Nhớ": "Liệt kê, kể tên, định nghĩa, mô tả, nêu, chỉ ra, nhận biết, trình bày, phân loại",
@@ -559,7 +611,7 @@ function buildPiOptions(plo, selected = '') {
     const selectedList = Array.isArray(selected) ? selected : normalizeListField(selected);
     const catalog = getPloPiCatalog();
     const found = catalog.find(item => item.plo === plo) || catalog[0] || { pi: [] };
-    return '<option value="">-- Chọn PI --</option>' + normalizeListField(found.pi)
+    return normalizeListField(found.pi)
         .map(pi => `<option value="${h(pi)}" ${selectedList.includes(pi) ? 'selected' : ''}>${h(pi)}</option>`)
         .join('');
 }
@@ -581,19 +633,6 @@ function initSelect2Within(root) {
     $(root).find('.select2-multiple').select2({ width: '100%' });
 }
 
-// Phần này tạm nữa có db thay vào -------------------------------------------------------------------------------------------
-const assessmentMethods = ["Chuyên cần", "Kiểm tra thường xuyên", "Thi kết thúc"];
-
-const defaultPloPiCatalog = [
-    { plo: 'PLO1', pi: ['PI1.1', 'PI1.2', 'PI1.3'] },
-    { plo: 'PLO2', pi: ['PI2.1', 'PI2.2', 'PI2.3'] },
-    { plo: 'PLO3', pi: ['PI3.1', 'PI3.2', 'PI3.3'] }
-];
-const assessmentToolsByMethod = {
-    "Chuyên cần": ["Điểm danh", "Hỏi đáp", "Quan sát thái độ học tập"],
-    "Kiểm tra thường xuyên": ["Bài kiểm tra ngắn", "Bài tập cá nhân", "Bài tập nhóm", "Rubric", "Logbook", "OSCE/OSPE"],
-    "Thi kết thúc": ["Thi viết", "Thi trắc nghiệm", "Thi vấn đáp", "Ngân hàng câu hỏi", "Rubric"]
-};
 //-----------------------------------------------------------------------------------------------------------------------------
 const bloomDictionary = {
     "Kiến thức": [
@@ -622,7 +661,11 @@ const bloomDictionary = {
 
 function extractCourseName() {
     const courseId = document.getElementById('courseSelect').value;
+    const majorId = document.getElementById('majorSelect').value;
+    const selectedMajorName = $('#majorSelect option:selected').text();
+
     if(!courseId) {
+        $('form :input').not('#year, #majorSelect, #courseSelect').prop('disabled', true);
         document.getElementById('courseName').value = '';
         document.getElementById('code').value = '';
         document.getElementById('total_hours').value = '';
@@ -631,20 +674,78 @@ function extractCourseName() {
         document.getElementById('credits').value = '';
         document.getElementById('credits_theory').value = '';
         document.getElementById('credits_practice').value = '';
+        $('select[name="module_type"]').val('').trigger('change');
+        $('input[name="target_programs"]').val('');
+        $('input[name="expected_semester"]').val('');
+        $('input[name="expected_year"]').val('');
+        $('select[name="prerequisite_modules[]"]').val([]).trigger('change');
+        $('select[name="parallel_modules[]"]').val([]).trigger('change');
+        $('select[name="previous_modules[]"]').val([]).trigger('change');
+        $('select[name="faculty_in_charge"]').val([]).trigger('change');
+        $('textarea[name="grading_scale"]').val('');
         return;
     }
+    
+    // Bật tất cả các trường trước khi khóa lại những trường readonly
+    $('form :input').prop('disabled', false);
+
     const target = dbCoursesList.find(x => x.id == courseId);
     if(target) {
         document.getElementById('courseName').value = target.name;
         document.getElementById('code').value = target.code;
-        document.getElementById('theory_hours').value = target.theory_hours || 0;
-        document.getElementById('practical_hours').value = target.practical_hours;
 
-        calculateTotalHours();
+        // Fetch framework details (Khung)
+        const moduleData = dbModules.find(m => String(m.course_id) === String(courseId)) || {};
 
-        document.getElementById('credits_theory').value = Math.round((target.theory_hours || 0) / 15) || 0;
-        document.getElementById('credits_practice').value = Math.round(target.practical_hours / 30) || 0;
-        calculateTotalCredits();
+        // Thang điểm lượng giá phần 5.1 (điền sẵn nội dung, không cho sửa)
+        $('textarea[name="grading_scale"]').val(moduleData.grading_scale || '').prop('readonly', true);
+
+        // Tính chất của học phần không cho sửa
+        if (moduleData.type) {
+            $('select[name="module_type"]').val(moduleData.type).trigger('change');
+        }
+        $('select[name="module_type"]').prop('disabled', true);
+
+        // Nạp tổng tín chỉ, lý thuyết, thực hành từ module (khung)
+        document.getElementById('credits').value = moduleData.credits || Math.round(((target.theory_hours || 0) / 15) + (target.practical_hours / 30)) || 0;
+        document.getElementById('credits_theory').value = moduleData.credits_theory || Math.round((target.theory_hours || 0) / 15) || 0;
+        document.getElementById('credits_practice').value = moduleData.credits_practice || Math.round((target.practical_hours || 0) / 30) || 0;
+        document.getElementById('total_hours').value = moduleData.total_hours || target.total_hours || (target.theory_hours + target.practical_hours) || 0;
+        document.getElementById('theory_hours').value = moduleData.theory_hours || target.theory_hours || 0;
+        document.getElementById('practical_hours').value = moduleData.practical_hours || target.practical_hours || 0;
+        
+        // Khóa các trường này
+        $('#credits, #credits_theory, #credits_practice, #total_hours, #theory_hours, #practical_hours').prop('readonly', true);
+
+        // Đối tượng người học: chỉ ghi ngành, không cho sửa
+        $('input[name="target_programs"]').val(selectedMajorName).prop('readonly', true);
+
+        // Học kỳ, năm học lấy từ khung (không cho sửa)
+        $('input[name="expected_semester"]').val(moduleData.expected_semester || '').prop('readonly', true);
+        $('input[name="expected_year"]').val(moduleData.expected_year || '').prop('readonly', true);
+
+        // Học phần tiên quyết, song hành, học trước (lấy từ khung, không cho sửa)
+        const rels = dbModuleRels.filter(r => r.module_id == moduleData.id);
+        
+        const preIds = rels.filter(r => r.relation_type === 'Tiên quyết').map(r => String(r.related_course_id));
+        $('select[name="prerequisite_modules[]"]').val(preIds).trigger('change').prop('disabled', true);
+        
+        const parIds = rels.filter(r => r.relation_type === 'Song hành').map(r => String(r.related_course_id));
+        $('select[name="parallel_modules[]"]').val(parIds).trigger('change').prop('disabled', true);
+        
+        const prevIds = rels.filter(r => r.relation_type === 'Học trước').map(r => String(r.related_course_id));
+        $('select[name="previous_modules[]"]').val(prevIds).trigger('change').prop('disabled', true);
+
+        // Khoa phụ trách (không cho sửa)
+        if (moduleData.faculty_in_charge) {
+            let facVals = moduleData.faculty_in_charge.split(',').map(s => s.trim());
+            $('select[name="faculty_in_charge"]').val(facVals).trigger('change');
+        } else {
+            $('select[name="faculty_in_charge"]').val(null).trigger('change');
+        }
+        $('select[name="faculty_in_charge"]').prop('disabled', true);
+
+        syncSelfStudyTotal();
     }
 }
 
@@ -1188,6 +1289,8 @@ function reindexResourceTable(tableId) {
 // ĐÓNG GÓI TOÀN BỘ DỮ LIỆU ĐỘNG THÀNH CHUỖI JSON TRƯỚC KHI SUBMIT
 // -------------------------------------------------------------
 function gatherJsonData() {
+    // Bật lại tất cả các field đã disable để cho phép form submit đầy đủ dữ liệu (nếu cần thiết)
+    $('form :input').prop('disabled', false);
     console.log("%c--- BẮT ĐẦU KIỂM TRA TOÀN BỘ GIÁ TRỊ TRONG FORM TRƯỚC KHI LƯU ---", "color: #1a446c; font-weight: bold; font-size: 14px;");
     // - Cap nhat gia tri Ban dieu phoi truoc khi dong goi va submit.
     syncCoordinatingBoard();
@@ -1500,6 +1603,9 @@ function gatherJsonData() {
 
 // KHỞI TẠO CÁC CẤU HÌNH BAN ĐẦU KHI TRANG TẢI XONG
 $(document).ready(function() {
+    // Tắt tất cả ngoại trừ ô Chọn năm lúc ban đầu
+    $('form :input').not('#year').prop('disabled', true);
+
     $('#courseSelect').select2({
         placeholder: '(Chọn học phần nền từ hệ thống)',
         allowClear: true,
@@ -1510,9 +1616,49 @@ $(document).ready(function() {
         placeholder: '(Chọn ngành nền từ hệ thống)',
         allowClear: true,
         width: '100%'
-    }).on('change', function() {
-        // - Doi nganh thi nap lai danh muc PLO/PI cho bang 4.2.
-        refreshAssessmentPloPiOptions();
+    });
+
+    // Xử lý sự kiện thay đổi Năm
+    $('#year').on('change', function() {
+        const selectedYear = $(this).val();
+        $('#majorSelect').empty().append('<option value="">-- Chọn ngành --</option>');
+        $('#courseSelect').empty().append('<option value="">-- Chọn học phần --</option>').prop('disabled', true);
+        
+        if (selectedYear) {
+            const majorIdsForYear = dbEduPrograms
+                .filter(ep => String(ep.year) === String(selectedYear))
+                .map(ep => String(ep.major_id));
+                
+            dbMajors.forEach(m => {
+                if (majorIdsForYear.includes(String(m.id))) {
+                    $('#majorSelect').append(`<option value="${m.id}">${h(m.name)}</option>`);
+                }
+            });
+            $('#majorSelect').prop('disabled', false);
+        }
+        
+        $('form :input').not('#year, #majorSelect').prop('disabled', true);
+        $('#majorSelect').trigger('change.select2');
+        $('#courseSelect').trigger('change.select2');
+    });
+
+    // Xử lý sự kiện thay đổi Ngành
+    $('#majorSelect').on('change', function() {
+        const selectedMajor = $(this).val();
+        $('#courseSelect').empty().append('<option value="">-- Chọn học phần --</option>');
+        
+        if (selectedMajor) {
+            const coursesForMajor = dbCoursesList.filter(c => String(c.major_id) === String(selectedMajor));
+            coursesForMajor.forEach(c => {
+                $('#courseSelect').append(`<option value="${c.id}" data-code="${h(c.code)}">${h(c.code)} - ${h(c.name)}</option>`);
+            });
+            $('#courseSelect').prop('disabled', false);
+            // Cập nhật lại danh mục PLO/PI cho bảng 4.2
+            refreshAssessmentPloPiOptions();
+        }
+        
+        $('form :input').not('#year, #majorSelect, #courseSelect').prop('disabled', true);
+        $('#courseSelect').trigger('change.select2');
     });
 
     $('.select2-enable').select2({ width: '100%' });
@@ -1578,6 +1724,11 @@ $(document).ready(function() {
     syncSelfStudyTotal();
     syncCoordinatingBoard();
     document.querySelector('input[name="self_study_hours"]').addEventListener('input', syncSelfStudyTotal);
+
+    // Kích hoạt sự kiện thay đổi Năm nếu đã có giá trị sẵn (VD: mặc định 2026)
+    if ($('#year').val()) {
+        $('#year').trigger('change');
+    }
 });
 
 function syncCloToTables() {
