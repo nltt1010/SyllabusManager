@@ -588,20 +588,29 @@ function getPloPiCatalog() {
     return defaultPloPiCatalog;
 }
 
-function buildPloOptions(selected = '') {
-    return '<option value="">-- Chọn PLO --</option>' + getPloPiCatalog()
-        .map(item => `<option value="${h(item.plo)}" ${item.plo === selected ? 'selected' : ''}>${h(item.plo)}</option>`)
+function buildPloOptions(selectedValues = []) {
+    const selected = Array.isArray(selectedValues) ? selectedValues : normalizeListField(selectedValues);
+    return getPloPiCatalog()
+        .map(item => `<option value="${h(item.plo)}" ${selected.includes(item.plo) ? 'selected' : ''}>${h(item.plo)}</option>`)
         .join('');
 }
 
-
-function buildPiOptions(plo, selected = '') {
+function buildPiOptions(plos, selected = '') {
     const selectedList = Array.isArray(selected) ? selected : normalizeListField(selected);
     const catalog = getPloPiCatalog();
-
-    const found = catalog.find(item => String(item.plo) === String(plo));
-    const piList = found ? found.pi : []; 
     
+    // Đảm bảo plos luôn là mảng để duyệt
+    const ploArray = Array.isArray(plos) ? plos : (plos ? [plos] : []);
+    let piList = [];
+    
+    // Lấy tất cả PI của các PLO được chọn
+    ploArray.forEach(plo => {
+        const found = catalog.find(item => String(item.plo) === String(plo));
+        if (found && found.pi) {
+            piList = piList.concat(found.pi);
+        }
+    });
+
     return normalizeListField(piList)
         .map(pi => `<option value="${h(pi)}" ${selectedList.includes(pi) ? 'selected' : ''}>${h(pi)}</option>`)
         .join('');
@@ -952,7 +961,7 @@ function addAssessmentRow() {
             <input type="text" class="form-control a-clos" name="assessment_clos[]">
         </td>
         <!-- - PLO chon tu danh muc PLO cua nganh, PI doi theo PLO. -->
-        <td><select class="form-select a-plo" name="assessment_plo[]" onchange="onAssessmentPloChange(this)">${buildPloOptions()}</select></td>
+        <td><select class="form-select a-plo select2-multiple" name="assessment_plo_${rowId}[]" multiple="multiple" data-placeholder="Chọn PLO" onchange="onAssessmentPloChange(this)">${buildPloOptions()}</select></td>
         <!-- - PI cho chon nhieu va danh sach PI duoc nap theo PLO dang chon. -->
         <td><select class="form-select a-pi select2-multiple" name="assessment_pi_${rowId}[]" multiple="multiple">${buildPiOptions('')}</select></td>
         <td>  
@@ -972,20 +981,21 @@ function addAssessmentRow() {
 
     `;
     tbody.appendChild(tr);
+    $(tr.querySelector('.a-plo')).select2({ width: '100%', placeholder: "Chọn PLO" });
     $(tr.querySelector('.a-pi')).select2({ width: '100%', placeholder: "Chọn PI" });
     // $(tr.querySelector('.a-contribution')).select2({ width: '100%', placeholder: "Chọn mức độ" });
     $(tr.querySelector('.a-tool')).select2({ width: '100%', placeholder: "Chọn công cụ đánh giá" });
     onAssessmentFormChange(tr.querySelector('.a-form'));
 }
 
-// - Cap nhat PI theo PLO va cong cu danh gia theo hinh thuc danh gia.
 function onAssessmentPloChange(selectEl) {
     const tr = selectEl.closest('tr');
     const piSelect = tr.querySelector('.a-pi');
-    // - Doi PLO thi xoa PI cu va nap lai danh muc PI tuong ung voi PLO moi.
-    $(piSelect).empty().append(buildPiOptions(selectEl.value)).val(null).trigger('change');
+    
+    const selectedPlos = $(selectEl).val() || [];
+    
+    $(piSelect).empty().append(buildPiOptions(selectedPlos)).val(null).trigger('change');
 }
-
 function refreshAssessmentPloPiOptions() {
     document.querySelectorAll('#assessmentTable tbody tr').forEach(tr => {
         const ploSelect = tr.querySelector('.a-plo');
@@ -1376,7 +1386,7 @@ function gatherJsonData() {
     let assessments = [];
     document.querySelectorAll('#assessmentTable tbody tr').forEach(tr => {
         const cloStr = tr.querySelector('.a-clos')?.value || '';
-        const plo = tr.querySelector('.a-plo')?.value || '';
+        const plo = ($(tr.querySelector('.a-plo')).val() || []).join(', ');
         
         // Thu thập cặp giá trị chi tiết: từng PI đi kèm mảng mức độ đóng góp riêng của nó
         let piContributionMap = [];
@@ -1757,20 +1767,29 @@ $(document).ready(function() {
         let pairMap = {}; 
         let assessmentData = []; 
 
-        document.querySelectorAll('#assessmentTable tbody tr').forEach(tr => {
-            const cloStr = tr.querySelector('.a-clos')?.value || '';
-            const rowClos = typeof normalizeCloCodes === 'function' ? normalizeCloCodes(cloStr, 0) : cloStr.split(',').map(s => s.trim()).filter(Boolean);
-            const plo = (tr.querySelector('.a-plo')?.value || '').trim();
-            
+        const catalog = getPloPiCatalog(); // Lấy danh mục gốc để đối chiếu
+
+    document.querySelectorAll('#assessmentTable tbody tr').forEach(tr => {
+        const cloStr = tr.querySelector('.a-clos')?.value || '';
+        const rowClos = typeof normalizeCloCodes === 'function' ? normalizeCloCodes(cloStr, 0) : cloStr.split(',').map(s => s.trim()).filter(Boolean);
+        
+        // Lấy danh sách PLO (mảng) thay vì chuỗi đơn
+        const plos = $(tr.querySelector('.a-plo')).val() || [];
+        
+        plos.forEach(plo => {
             if (plo && rowClos.length > 0) {
+                // Xác định xem PLO này có những PI hợp lệ nào
+                const ploCatalogEntry = catalog.find(item => String(item.plo) === String(plo));
+                const validPisForThisPlo = ploCatalogEntry ? ploCatalogEntry.pi : [];
+
                 if (!pairMap[plo]) pairMap[plo] = new Set();
                 
-                // Duyệt qua các ô chọn mức độ đóng góp riêng lẻ của từng PI trong dòng này
                 tr.querySelectorAll('.pi-contrib-select').forEach(select => {
                     const pi = (select.getAttribute('data-pi') || '').trim();
                     const contribs = $(select).val() || [];
                     
-                    if (pi && contribs.length > 0) {
+                    // CHỈ THÊM vào ma trận nếu PI này thực sự thuộc về PLO đang xét
+                    if (pi && contribs.length > 0 && validPisForThisPlo.includes(pi)) {
                         pairMap[plo].add(pi);
                         
                         assessmentData.push({
@@ -1783,6 +1802,7 @@ $(document).ready(function() {
                 });
             }
         });
+    });
 
         // Sắp xếp danh mục cột tiêu đề để hiển thị khoa học
         let sortedPlos = Object.keys(pairMap).sort();
@@ -1963,7 +1983,7 @@ function syncCloToTables() {
                     <input type="text" class="form-control a-clos" name="assessment_clos[]" value="${code}">
                 </td>
                 <!-- - PLO/PI dong bo cho dong assessment tu sinh theo CLO. -->
-                <td><select class="form-select a-plo" name="assessment_plo[]" onchange="onAssessmentPloChange(this)">${buildPloOptions()}</select></td>
+                <td><select class="form-select a-plo select2-multiple" name="assessment_plo_${rowId}[]" multiple="multiple" data-placeholder="Chọn PLO" onchange="onAssessmentPloChange(this)">${buildPloOptions()}</select></td>
                 <!-- - PI dong bo la select2 multiple va thay doi theo PLO. -->
                 <td><select class="form-select a-pi select2-multiple" name="assessment_pi_${rowId}[]" multiple="multiple">${buildPiOptions('')}</select></td>
                 <td>
@@ -1981,6 +2001,7 @@ function syncCloToTables() {
                 <td><input type="number" class="form-control a-weight" name="assessment_weight[]" value="0" min="0" max="100" oninput="onWeightInput(this)"></td>
             `;
             assessTbody.appendChild(tr);
+            $(tr.querySelector('.a-plo')).select2({ width: '100%', placeholder: "Chọn PLO" });
             $(tr.querySelector('.a-pi')).select2({ width: '100%', placeholder: "Chọn PI" });
             // $(tr.querySelector('.a-contribution')).select2({ width: '100%', placeholder: "Chọn mức độ" });
             $(tr.querySelector('.a-tool')).select2({ width: '100%', placeholder: "Chọn công cụ đánh giá" });

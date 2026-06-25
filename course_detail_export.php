@@ -553,23 +553,59 @@ $html = '
     // =====================================================================
     // 8. PHỤ LỤC: MA TRẬN CLO - PLO
     // =====================================================================
+    $matrixMapping = [];
+    $contribMap = [];
+    $activeClos = [];
+    $mappedPlos = [];
+    $mappedPis = [];
+
+    // Truy vấn lấy dữ liệu có chứa cột contribution giống hệt view.php
     $stmtMatrix = $pdo->prepare("
-        SELECT c.code as clo_code, p.code as plo_code, pi.code as pi_code
+        SELECT 
+            UPPER(TRIM(c.code)) as clo_code, 
+            UPPER(TRIM(p.code)) as plo_code, 
+            UPPER(TRIM(pi.code)) as pi_code,
+            cp.contribution
         FROM clo_plos cp
         JOIN clos c ON cp.clo_id = c.id
         JOIN plos p ON cp.plo_id = p.id
         LEFT JOIN pis pi ON cp.pi_id = pi.id
-        WHERE c.module_id = ?
+        WHERE c.module_id = ? 
+          AND cp.contribution IS NOT NULL 
+          AND TRIM(cp.contribution) != ''
     ");
     $stmtMatrix->execute([$id]);
-    $mappings = $stmtMatrix->fetchAll(PDO::FETCH_ASSOC);
+    $matrixData = $stmtMatrix->fetchAll(PDO::FETCH_ASSOC);
 
-    $matrixMapping = [];
-    foreach ($mappings as $m) {
-        $clo = $m['clo_code'];
-        $plo = $m['plo_code'];
-        $pi = $m['pi_code'] ?? '';
+    foreach ($matrixData as $row) {
+        $clo = $row['clo_code'];
+        $plo = $row['plo_code'];
+        $pi  = $row['pi_code'] ?? '';
+        $contrib = trim($row['contribution']);
+
+        if (!in_array($clo, $activeClos)) $activeClos[] = $clo;
+        if (!in_array($plo, $mappedPlos)) $mappedPlos[] = $plo;
+        if ($pi !== '') {
+            if (!isset($mappedPis[$plo])) $mappedPis[$plo] = [];
+            if (!in_array($pi, $mappedPis[$plo])) $mappedPis[$plo][] = $pi;
+        }
+
         $matrixMapping[$clo][$plo][$pi] = true;
+        
+        if (!isset($contribMap[$clo][$plo][$pi])) {
+            $contribMap[$clo][$plo][$pi] = $contrib;
+        } else {
+            $existing = explode(', ', $contribMap[$clo][$plo][$pi]);
+            $new = explode(', ', $contrib);
+            $merged = array_unique(array_merge($existing, $new));
+            $contribMap[$clo][$plo][$pi] = implode(', ', $merged);
+        }
+    }
+
+    foreach ($mappedPlos as $plo) {
+        if (empty($mappedPis[$plo])) {
+            $mappedPis[$plo] = [''];
+        }
     }
 
     // Lấy thông tin contribution từ bảng assessments
@@ -577,7 +613,6 @@ $html = '
     $stmtAssessments->execute([$id]);
     $assessmentsData = $stmtAssessments->fetchAll(PDO::FETCH_ASSOC);
 
-    $contribMap = [];
     foreach ($assessmentsData as $row) {
         if (empty($row['clos_text']) || empty($row['plo_pi'])) continue;
         
@@ -600,36 +635,6 @@ $html = '
         }
     }
 
-    // Debug để kiểm tra xem đã lấy được dữ liệu chưa
-    if (empty($mappings)) {
-        // Tạm thời để log để bạn kiểm tra trên trình duyệt
-        error_log("DEBUG: Không có dữ liệu ánh xạ cho module_id = " . $id);
-    }
-
-    // 2. Chuyển đổi về cấu trúc ma trận của bạn
-    $matrixMapping = [];
-    $mappedPlos = [];
-    $mappedPis = [];
-    $activeClos = [];
-
-    foreach ($mappings as $m) {
-        $clo = $m['clo_code'];
-        $plo = $m['plo_code'];
-        $pi = $m['pi_code'];
-
-        $matrixMapping[$clo][$plo][$pi] = true;
-
-        if (!in_array($plo, $mappedPlos)) {
-            $mappedPlos[] = $plo;
-            $mappedPis[$plo] = [];
-        }
-        if (!in_array($pi, $mappedPis[$plo])) {
-            $mappedPis[$plo][] = $pi;
-        }
-        if (!in_array($clo, $activeClos)) {
-            $activeClos[] = $clo;
-        }
-    }
     natsort($activeClos);
     natsort($mappedPlos);
     foreach ($mappedPis as &$pArr) { natsort($pArr); }
@@ -641,72 +646,108 @@ $html = '
     if (empty($activeClos) || empty($mappedPlos)) {
         $html .= '<p class="text-center fst-italic">Chưa có thông tin ánh xạ CLO - PLO/PI.</p>';
     } else {
+        // Tính tổng số cột PI để làm colspan
+        $totalColumns = 0;
+        $moduleTotals = [];
+        foreach ($mappedPlos as $plo) {
+            $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+            $totalColumns += count($piList);
+            foreach ($piList as $pi) {
+                $moduleTotals[$plo][$pi] = [];
+            }
+        }
+
         $html .= '
-    <table style="font-size: 10pt;">
-        <thead>
-            <tr>
-                <th rowspan="2" style="width: 15%; vertical-align: middle;">CLOs</th>';
+        <table style="font-size: 10pt; width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th rowspan="3" style="width: 12%; background-color: #f8f9fa; vertical-align: middle;">CLOs</th>
+                    <th colspan="' . $totalColumns . '" style="background-color: #f8f9fa;">PO và giá trị PI</th>
+                </tr>
+                <tr>';
         
         foreach ($mappedPlos as $plo) {
-            $colSpan = count($mappedPis[$plo]);
-            $html .= '<th colspan="' . $colSpan . '">' . htmlspecialchars($plo) . '</th>';
+            $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+            $colSpan = count($piList);
+            $html .= '<th colspan="' . $colSpan . '" style="background-color: #eef2f7;">' . htmlspecialchars($plo) . '</th>';
         }
         
         $html .= '</tr><tr>';
         
         foreach ($mappedPlos as $plo) {
-            foreach ($mappedPis[$plo] as $pi) {
-                $html .= '<th>' . htmlspecialchars($pi) . '</th>';
+            $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+            foreach ($piList as $pi) {
+                $html .= '<th style="background-color: #fff;">' . htmlspecialchars($pi) . '</th>';
             }
         }
         
         $html .= '</tr>
-        </thead>
-        <tbody>';
+            </thead>
+            <tbody>';
         
+        // Render thân bảng (Các hàng CLO)
         foreach ($activeClos as $clo) {
             $html .= '<tr>
-                <td class="text-center fw-bold">' . htmlspecialchars($clo) . '</td>';
+                <td class="text-center" style="font-weight: bold; background-color: #f8f9fa;">' . htmlspecialchars($clo) . '</td>';
+            
             foreach ($mappedPlos as $plo) {
-                foreach ($mappedPis[$plo] as $pi) {
-                    
-                    // --- ĐOẠN CODE BẠN VỪA HỎI ĐƯỢC THAY VÀO ĐÂY ---
-                    if ($pi !== '') {
-                        if (isset($matrixMapping[$clo][$plo][$pi])) {
-                            $contribs = $contribMap[$clo][$plo] ?? [];
-                            $isMapped = count($contribs) > 0 ? htmlspecialchars(implode(', ', $contribs)) : 'X';
-                        } else {
-                            $isMapped = '';
+                $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+                foreach ($piList as $pi) {
+                    $cellValue = '';
+                    if (isset($matrixMapping[$clo][$plo][$pi])) {
+                        $cellValue = $contribMap[$clo][$plo][$pi] ?? '';
+                        
+                        // Thu thập dữ liệu để tính tổng Học phần
+                        if (!empty($cellValue)) {
+                            $parts = array_map('trim', explode(',', $cellValue));
+                            foreach ($parts as $p) {
+                                if (!in_array($p, $moduleTotals[$plo][$pi])) {
+                                    $moduleTotals[$plo][$pi][] = $p;
+                                }
+                            }
                         }
-                        $html .= '<td class="text-center" style="color: red; font-weight: bold;">' . $isMapped . '</td>';
-                    } else {
-                        if (isset($matrixMapping[$clo][$plo][''])) {
-                            $contribs = $contribMap[$clo][$plo] ?? [];
-                            $isMapped = count($contribs) > 0 ? htmlspecialchars(implode(', ', $contribs)) : 'X';
-                        } else {
-                            $isMapped = '';
-                        }
-                        $html .= '<td class="text-center" style="color: red; font-weight: bold;">' . $isMapped . '</td>';
                     }
-                    // ---------------------------------------------
                     
+                    $html .= '<td class="text-center">' . (!empty($cellValue) ? htmlspecialchars($cellValue) : '') . '</td>';
                 }
             }
             $html .= '</tr>';
         }
         
-        $html .= '</tbody>
-    </table>';
+        // Hàng tổng kết "Học phần"
+        $html .= '<tr>
+            <td class="text-center" style="font-weight: bold; background-color: #e2f0d9;">Học phần</td>';
+            
+        foreach ($mappedPlos as $plo) {
+            $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+            foreach ($piList as $pi) {
+                $totals = $moduleTotals[$plo][$pi];
+                
+                // Sắp xếp mảng chuẩn I, R, M, A
+                $order = ['I' => 1, 'R' => 2, 'M' => 3, 'A' => 4];
+                usort($totals, function($a, $b) use ($order) {
+                    $wa = $order[$a] ?? 99;
+                    $wb = $order[$b] ?? 99;
+                    return $wa <=> $wb;
+                });
+                
+                $totalText = implode(', ', $totals);
+                $html .= '<td class="text-center" style="font-weight: bold; background-color: #e2f0d9;">' . htmlspecialchars($totalText) . '</td>';
+            }
+        }
+        
+        $html .= '</tr>
+            </tbody>
+        </table>';
     }
 
     $html .= '
 </body>
 </html>';
 
-
-// =====================================================================
-// 3. KHỞI TẠO MPDF VÀ ĐẨY FILE PDF VỀ BROWSER TẢI XUỐNG
-// =====================================================================
+    // =====================================================================
+    // 3. KHỞI TẠO MPDF VÀ ĐẨY FILE PDF VỀ BROWSER TẢI XUỐNG
+    // =====================================================================
 $safeCode = preg_replace('/[^A-Za-z0-9_\-]/', '_', s($module['code']));
 $filename = 'DeCuong_' . $safeCode . '.pdf';
 

@@ -749,8 +749,21 @@ try {
         $closText = implode(', ', $normalizeCloCodes((string)($row['clos'] ?? '')));
         $toolNames = $normalizeTextList($row['tool'] ?? '');
         $ploCodes = $normalizeTextList($row['plo'] ?? '');
-        $piCodes = $normalizeTextList($row['pi'] ?? '');
-        $contribution = trim((string)($row['contribution'] ?? ''));
+        $piCodes = [];
+        $contribsArr = [];
+        
+        // Bóc tách PI và Mức độ đóng góp từ mảng piMap
+        if (!empty($row['piMap']) && is_array($row['piMap'])) {
+            foreach ($row['piMap'] as $pObj) {
+                if (!empty($pObj['pi'])) {
+                    $piCodes[] = $pObj['pi'];
+                }
+                if (!empty($pObj['contribs'])) {
+                    $contribsArr = array_merge($contribsArr, $pObj['contribs']);
+                }
+            }
+        }
+        $contribution = implode(', ', array_unique($contribsArr));
         $weight = (float)($row['weight'] ?? 0);
 
         $ploPiText = trim((string)($row['plo_pi'] ?? ''));
@@ -1068,6 +1081,7 @@ try {
         }
     }
     // --- LƯU MA TRẬN CLO-PLO-PI DỰA TRÊN ASSESSMENTS_JSON ---
+    // --- LƯU MA TRẬN CLO-PLO-PI DỰA TRÊN ASSESSMENTS_JSON ---
     if (!empty($_POST['assessments_json'])) {
         
         $cloIdMap = [];
@@ -1077,23 +1091,21 @@ try {
             $cloIdMap[$row['code']] = $row['id']; 
         }
 
-        $ploIdByCode = [];
-        $stmtPloMap = $pdo->query("SELECT id, UPPER(TRIM(code)) as code FROM plos");
-        while($row = $stmtPloMap->fetch(PDO::FETCH_ASSOC)) { 
-            $ploIdByCode[$row['code']] = $row['id']; 
-        }
-
-        $piIdByCode = [];
-        $stmtPiMap = $pdo->query("SELECT id, UPPER(TRIM(code)) as code FROM pis");
+        // Lấy PI kèm theo ID của PLO cha từ CSDL để map tự động và chính xác nhất
+        $piDataMap = [];
+        $stmtPiMap = $pdo->query("SELECT id, plo_id, UPPER(TRIM(code)) as code FROM pis");
         while($row = $stmtPiMap->fetch(PDO::FETCH_ASSOC)) { 
-            $piIdByCode[$row['code']] = $row['id']; 
+            $piDataMap[$row['code']] = [
+                'id' => $row['id'],
+                'plo_id' => $row['plo_id']
+            ]; 
         }
 
         // Xóa liên kết cũ của học phần này
         $stmtDel = $pdo->prepare("DELETE FROM clo_plos WHERE clo_id IN (SELECT id FROM clos WHERE module_id = ?)");
         $stmtDel->execute([$moduleId]);
 
-        // Query chèn dữ liệu mới có thêm cột contribution
+        // Query chèn dữ liệu mới
         $stmtIns = $pdo->prepare("INSERT INTO clo_plos (clo_id, plo_id, pi_id, contribution) VALUES (?, ?, ?, ?)");
         
         $assessmentsData = json_decode($_POST['assessments_json'], true);
@@ -1101,34 +1113,37 @@ try {
     
         if (is_array($assessmentsData)) {
             foreach ($assessmentsData as $item) {
-                $cloKey = strtoupper(trim($item['clos'] ?? ''));
-                $cloId = $cloIdMap[$cloKey] ?? null;
+                // Tách chuỗi "CLO1, CLO2" thành mảng ['CLO1', 'CLO2']
+                $closList = $normalizeTextList($item['clos'] ?? '');
 
-                $ploKey = strtoupper(trim($item['plo'] ?? ''));
-                $ploId = $ploIdByCode[$ploKey] ?? null;
+                foreach ($closList as $cloKey) {
+                    $cloId = $cloIdMap[strtoupper($cloKey)] ?? null;
+                    if (!$cloId) continue; // Bỏ qua nếu CLO không tồn tại
 
-                if ($cloId && $ploId) {
                     if (!empty($item['piMap']) && is_array($item['piMap'])) {
                         foreach ($item['piMap'] as $pObj) {
                             $piKey = strtoupper(trim($pObj['pi'] ?? ''));
-                            $piId = $piIdByCode[$piKey] ?? null;
                             
-                            // Ghép mảng I,M,R,A thành chuỗi (Ví dụ: "I, M")
-                            $contribs = $pObj['contribs'] ?? [];
-                            $contribStr = count($contribs) > 0 ? implode(', ', $contribs) : '';
-                            
-                            $checkKey = "{$cloId}_{$ploId}_{$piId}";
-                            
-                            // THAY ĐỔI CHÍNH: Chỉ lưu vào CSDL khi ô này được chọn mức đóng góp (khác rỗng)
-                            if (!isset($insertedPairs[$checkKey]) && $contribStr !== '') {
-                                $stmtIns->execute([$cloId, $ploId, $piId, $contribStr]);
-                                $insertedPairs[$checkKey] = true;
+                            // Nếu PI có trong DB, tự động suy ra được PLO ID cha của nó
+                            if (isset($piDataMap[$piKey])) {
+                                $piId = $piDataMap[$piKey]['id'];
+                                $ploId = $piDataMap[$piKey]['plo_id'];
+                                
+                                $contribs = $pObj['contribs'] ?? [];
+                                $contribStr = count($contribs) > 0 ? implode(', ', $contribs) : '';
+                                
+                                $checkKey = "{$cloId}_{$ploId}_{$piId}";
+                                
+                                // Chỉ lưu nếu ô này được gán mức đóng góp và chưa bị trùng lặp
+                                if (!isset($insertedPairs[$checkKey]) && $contribStr !== '') {
+                                    $stmtIns->execute([$cloId, $ploId, $piId, $contribStr]);
+                                    $insertedPairs[$checkKey] = true;
+                                }
                             }
                         }
                     }
-                
+                }
             }
-        }
         }
     }
 //------------------------------------------------------------------------------

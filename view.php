@@ -597,15 +597,14 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </tbody>
     </table>
 
+
+    // -----------------------------------------------------------
     <div class="section-title">8. PHỤ LỤC</div>
     <div class="sub-section-header">
         <div class="sub-section-title">Ma trận chuẩn đầu ra học phần (CLOs) và chuẩn đầu ra chương trình đào tạo (PLOs/PIs)</div>
     </div>
     
     <?php
-
-
-    // -----------------------------------------------------------
 
     // Lấy thông tin contribution từ bảng assessments
     $stmtAssessments = $pdo->prepare("SELECT clos_text, plo_pi, contribution FROM assessments WHERE module_id = ?");
