@@ -18,6 +18,68 @@ if (!$module) {
     die("Đề cương không tồn tại trên hệ thống.");
 }
 
+
+$matrixMapping = [];
+$contribMap = [];
+$activeClos = [];
+$mappedPlos = [];
+$mappedPis = [];
+
+// Truy vấn lấy dữ liệu có chứa cột contribution
+$stmtMatrix = $pdo->prepare("
+    SELECT 
+        UPPER(TRIM(c.code)) as clo_code, 
+        UPPER(TRIM(p.code)) as plo_code, 
+        UPPER(TRIM(pi.code)) as pi_code,
+        cp.contribution
+    FROM clo_plos cp
+    JOIN clos c ON cp.clo_id = c.id
+    JOIN plos p ON cp.plo_id = p.id
+    LEFT JOIN pis pi ON cp.pi_id = pi.id
+    WHERE c.module_id = ? 
+      AND cp.contribution IS NOT NULL 
+      AND TRIM(cp.contribution) != ''
+");
+$stmtMatrix->execute([$id]); // Lúc này $id chắc chắn đã có giá trị
+$matrixData = $stmtMatrix->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($matrixData as $row) {
+    $clo = $row['clo_code'];
+    $plo = $row['plo_code'];
+    $pi  = $row['pi_code'] ?? '';
+    $contrib = trim($row['contribution']);
+
+    if (!in_array($clo, $activeClos)) $activeClos[] = $clo;
+    if (!in_array($plo, $mappedPlos)) $mappedPlos[] = $plo;
+    if ($pi !== '') {
+        if (!isset($mappedPis[$plo])) $mappedPis[$plo] = [];
+        if (!in_array($pi, $mappedPis[$plo])) $mappedPis[$plo][] = $pi;
+    }
+
+    $matrixMapping[$clo][$plo][$pi] = true;
+    
+    if (!isset($contribMap[$clo][$plo][$pi])) {
+        $contribMap[$clo][$plo][$pi] = $contrib;
+    } else {
+        $existing = explode(', ', $contribMap[$clo][$plo][$pi]);
+        $new = explode(', ', $contrib);
+        $merged = array_unique(array_merge($existing, $new));
+        $contribMap[$clo][$plo][$pi] = implode(', ', $merged);
+    }
+}
+
+foreach ($mappedPlos as $plo) {
+    if (empty($mappedPis[$plo])) {
+        $mappedPis[$plo] = [''];
+    }
+}
+
+sort($activeClos);
+sort($mappedPlos);
+foreach ($mappedPis as $plo => $pis) {
+    sort($mappedPis[$plo]);
+}
+// ==============================================================================
 // 2. Lấy dữ liệu Chuẩn đầu ra (CLOs)
 $stmtClo = $pdo->prepare("SELECT * FROM clos WHERE module_id = ? ORDER BY id ASC");
 $stmtClo->execute([$id]);
@@ -84,6 +146,8 @@ $stmtCombined = $pdo->prepare("
     WHERE cb.module_id = ?
     GROUP BY cb.id ORDER BY cb.id ASC
 ");
+
+
 $stmtCombined->execute([$id]);
 $combinedTopics = $stmtCombined->fetchAll(PDO::FETCH_ASSOC);
 
@@ -267,7 +331,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                         ?>
                     </td>
                     
-                    <td><?= nl2br(h($c['description'])) ?></td>
+                    <td><?= nl2br(h($c['content'])) ?></td>
 
 
                 </tr>
@@ -532,6 +596,164 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
             <?php endif; ?>
         </tbody>
     </table>
+
+    <div class="section-title">8. PHỤ LỤC</div>
+    <div class="sub-section-header">
+        <div class="sub-section-title">Ma trận chuẩn đầu ra học phần (CLOs) và chuẩn đầu ra chương trình đào tạo (PLOs/PIs)</div>
+    </div>
+    
+    <?php
+
+
+    // -----------------------------------------------------------
+
+    // Lấy thông tin contribution từ bảng assessments
+    $stmtAssessments = $pdo->prepare("SELECT clos_text, plo_pi, contribution FROM assessments WHERE module_id = ?");
+    $stmtAssessments->execute([$id]);
+    $assessmentsData = $stmtAssessments->fetchAll(PDO::FETCH_ASSOC);
+
+    // $contribMap = [];
+    foreach ($assessmentsData as $row) {
+        if (empty($row['clos_text']) || empty($row['plo_pi'])) continue;
+        
+        preg_match_all('/CLO\s*\d+/i', $row['clos_text'], $cloMatches);
+        $clos = array_unique(array_map('strtoupper', array_map('trim', str_replace(' ', '', $cloMatches[0] ?? []))));
+        
+        $parts = explode('/', $row['plo_pi']);
+        $plo = trim($parts[0] ?? '');
+        
+        $contribs = array_filter(array_map('trim', explode(',', $row['contribution'] ?? '')));
+        
+        foreach ($clos as $clo) {
+            if (!isset($contribMap[$clo])) $contribMap[$clo] = [];
+            if (!isset($contribMap[$clo][$plo])) $contribMap[$clo][$plo] = [];
+            foreach ($contribs as $c) {
+                if (!in_array($c, $contribMap[$clo][$plo])) {
+                    $contribMap[$clo][$plo][] = $c;
+                }
+            }
+        }
+    }
+
+    natsort($activeClos);
+    natsort($mappedPlos);
+    foreach ($mappedPis as &$pArr) { natsort($pArr); }
+    ?>
+
+    <?php if (empty($activeClos) || empty($mappedPlos)): ?>
+        <p class="text-center fst-italic text-muted">Chưa có thông tin ánh xạ CLO - PLO/PI.</p>
+    <?php else: ?>
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle">
+                <?php
+                // 1. Tính tổng số cột PI để làm colspan cho hàng đầu tiên
+                $totalColumns = 0;
+                $moduleTotals = []; // Mảng chứa tổng hợp I, M, R, A cho hàng cuối
+                foreach ($mappedPlos as $plo) {
+                    $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+                    $totalColumns += count($piList);
+                    foreach ($piList as $pi) {
+                        $moduleTotals[$plo][$pi] = []; // Khởi tạo mảng rỗng cho mỗi cột
+                    }
+                }
+                ?>
+                <thead class="align-middle text-center">
+                    <tr>
+                        <th rowspan="3" style="width: 12%; background-color: #f8f9fa;">CLOs</th>
+                        <th colspan="<?= $totalColumns ?>" class="text-uppercase fw-bold text-secondary">PO và giá trị PI</th>
+                    </tr>
+                    
+                    <tr>
+                        <?php foreach ($mappedPlos as $plo): ?>
+                            <?php 
+                            $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+                            $colSpan = count($piList); 
+                            ?>
+                            <th colspan="<?= $colSpan ?>" style="background-color: #eef2f7; color: #333;" class="fw-bold">
+                                <?= htmlspecialchars($plo) ?>
+                            </th>
+                        <?php endforeach; ?>
+                    </tr>
+                    
+                    <tr>
+                        <?php foreach ($mappedPlos as $plo): ?>
+                            <?php 
+                            $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+                            foreach ($piList as $pi): 
+                            ?>
+                                <th style="font-size: 0.9rem; font-weight: 600; background-color: #fff;">
+                                    <?= htmlspecialchars($pi) ?>
+                                </th>
+                            <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($activeClos as $clo): ?>
+                        <tr>
+                            <td class="text-center fw-bold bg-light text-dark">
+                                <?= htmlspecialchars($clo); ?>
+                            </td>
+                            
+                            <?php foreach ($mappedPlos as $plo): ?>
+                                <?php 
+                                $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : ['']; 
+                                foreach ($piList as $pi): 
+                                    $cellValue = '';
+                                    if (isset($matrixMapping[$clo][$plo][$pi])) {
+                                        $cellValue = $contribMap[$clo][$plo][$pi] ?? '';
+                                        
+                                        // Thu thập mức độ (I, M, R, A) cho hàng cuối cùng "Học phần"
+                                        if (!empty($cellValue)) {
+                                            $parts = array_map('trim', explode(',', $cellValue));
+                                            foreach ($parts as $p) {
+                                                if (!in_array($p, $moduleTotals[$plo][$pi])) {
+                                                    $moduleTotals[$plo][$pi][] = $p;
+                                                }
+                                            }
+                                        }
+                                    }
+                                ?>
+                                    <td class="text-center" style="min-width: 60px;">
+                                        <?= !empty($cellValue) ? htmlspecialchars($cellValue) : '' ?>
+                                    </td>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        </tr>
+                    <?php endforeach; ?>
+                    
+                    <tr class="fw-bold" style="background-color: #e2f0d9 !important;">
+                        <td class="text-dark text-center text-start ps-2" style="background-color: #e2f0d9 !important;">
+                            Học phần
+                        </td>
+                        <?php foreach ($mappedPlos as $plo): ?>
+                            <?php 
+                            $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : ['']; 
+                            foreach ($piList as $pi): 
+                                // Lấy các mức đóng góp của cột này
+                                $totals = $moduleTotals[$plo][$pi];
+                                
+                                // Sắp xếp theo thứ tự chuẩn: I, R, M, A
+                                $order = ['I' => 1, 'R' => 2, 'M' => 3, 'A' => 4];
+                                usort($totals, function($a, $b) use ($order) {
+                                    $wa = $order[$a] ?? 99;
+                                    $wb = $order[$b] ?? 99;
+                                    return $wa <=> $wb;
+                                });
+                                
+                                $totalText = implode(', ', $totals);
+                            ?>
+                                <td class="text-center text-dark">
+                                    <?= htmlspecialchars($totalText) ?>
+                                </td>
+                            <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </tr>
+                </tbody>    
+            </table>
+        </div>
+    <?php endif; ?>
+
 </div>
 
 </body>

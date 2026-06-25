@@ -7,8 +7,8 @@ mb_http_output('UTF-8');
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/vendor/autoload.php';
 
-ini_set('display_errors', 0);
-
+ini_set('display_errors', 1);
+$pdo->exec('SET SESSION group_concat_max_len = 100000;');
 // =====================================================================
 // 1. LẤY ID VÀ TRUY VẤN CƠ SỞ DỮ LIỆU
 // =====================================================================
@@ -265,9 +265,14 @@ $html = '
 
     <h1>3. MỤC TIÊU VÀ CHUẨN ĐẦU RA HỌC PHẦN</h1>
     <h2>3.1. Mục tiêu</h2>';
-    foreach (preg_split('/\r\n|\r|\n/', trim(s($module['objectives']))) as $line) {
-        if (trim($line) === '') continue;
-        $html .= '<p class="indent">' . htmlspecialchars(trim($line)) . '</p>';
+    if (!empty($module['objective_general'])) {
+        $html .= '<p><b>Mục tiêu chung:</b> ' . nl2br(htmlspecialchars(s($module['objective_general']))) . '</p>';
+    }
+    if (!empty($module['objective_specific'])) {
+        $html .= '<p><b>Mục tiêu cụ thể (PO):</b> ' . nl2br(htmlspecialchars(s($module['objective_specific']))) . '</p>';
+    }
+    if (!empty($module['objective_plo'])) {
+        $html .= '<p><b>Chuẩn đầu ra CTĐT (PLO):</b> ' . nl2br(htmlspecialchars(s($module['objective_plo']))) . '</p>';
     }
     $html .= '
     <h2>3.2. Chuẩn đầu ra học phần (Bloom)</h2>
@@ -543,10 +548,161 @@ $html = '
             $html .= '<tr><td colspan="6" class="text-center">Chưa thiết lập danh mục tài liệu tự học</td></tr>';
         }
         $html .= '</tbody>
-    </table>
+    </table>';
 
+    // =====================================================================
+    // 8. PHỤ LỤC: MA TRẬN CLO - PLO
+    // =====================================================================
+    $stmtMatrix = $pdo->prepare("
+        SELECT c.code as clo_code, p.code as plo_code, pi.code as pi_code
+        FROM clo_plos cp
+        JOIN clos c ON cp.clo_id = c.id
+        JOIN plos p ON cp.plo_id = p.id
+        LEFT JOIN pis pi ON cp.pi_id = pi.id
+        WHERE c.module_id = ?
+    ");
+    $stmtMatrix->execute([$id]);
+    $mappings = $stmtMatrix->fetchAll(PDO::FETCH_ASSOC);
+
+    $matrixMapping = [];
+    foreach ($mappings as $m) {
+        $clo = $m['clo_code'];
+        $plo = $m['plo_code'];
+        $pi = $m['pi_code'] ?? '';
+        $matrixMapping[$clo][$plo][$pi] = true;
+    }
+
+    // Lấy thông tin contribution từ bảng assessments
+    $stmtAssessments = $pdo->prepare("SELECT clos_text, plo_pi, contribution FROM assessments WHERE module_id = ?");
+    $stmtAssessments->execute([$id]);
+    $assessmentsData = $stmtAssessments->fetchAll(PDO::FETCH_ASSOC);
+
+    $contribMap = [];
+    foreach ($assessmentsData as $row) {
+        if (empty($row['clos_text']) || empty($row['plo_pi'])) continue;
+        
+        preg_match_all('/CLO\s*\d+/i', $row['clos_text'], $cloMatches);
+        $clos = array_unique(array_map('strtoupper', array_map('trim', str_replace(' ', '', $cloMatches[0] ?? []))));
+        
+        $parts = explode('/', $row['plo_pi']);
+        $plo = trim($parts[0] ?? '');
+        
+        $contribs = array_filter(array_map('trim', explode(',', $row['contribution'] ?? '')));
+        
+        foreach ($clos as $clo) {
+            if (!isset($contribMap[$clo])) $contribMap[$clo] = [];
+            if (!isset($contribMap[$clo][$plo])) $contribMap[$clo][$plo] = [];
+            foreach ($contribs as $c) {
+                if (!in_array($c, $contribMap[$clo][$plo])) {
+                    $contribMap[$clo][$plo][] = $c;
+                }
+            }
+        }
+    }
+
+    // Debug để kiểm tra xem đã lấy được dữ liệu chưa
+    if (empty($mappings)) {
+        // Tạm thời để log để bạn kiểm tra trên trình duyệt
+        error_log("DEBUG: Không có dữ liệu ánh xạ cho module_id = " . $id);
+    }
+
+    // 2. Chuyển đổi về cấu trúc ma trận của bạn
+    $matrixMapping = [];
+    $mappedPlos = [];
+    $mappedPis = [];
+    $activeClos = [];
+
+    foreach ($mappings as $m) {
+        $clo = $m['clo_code'];
+        $plo = $m['plo_code'];
+        $pi = $m['pi_code'];
+
+        $matrixMapping[$clo][$plo][$pi] = true;
+
+        if (!in_array($plo, $mappedPlos)) {
+            $mappedPlos[] = $plo;
+            $mappedPis[$plo] = [];
+        }
+        if (!in_array($pi, $mappedPis[$plo])) {
+            $mappedPis[$plo][] = $pi;
+        }
+        if (!in_array($clo, $activeClos)) {
+            $activeClos[] = $clo;
+        }
+    }
+    natsort($activeClos);
+    natsort($mappedPlos);
+    foreach ($mappedPis as &$pArr) { natsort($pArr); }
+
+    $html .= '
+    <h1>8. PHỤ LỤC</h1>
+    <h2>Ma trận chuẩn đầu ra học phần (CLOs) và chuẩn đầu ra chương trình đào tạo (PLOs/PIs)</h2>';
+
+    if (empty($activeClos) || empty($mappedPlos)) {
+        $html .= '<p class="text-center fst-italic">Chưa có thông tin ánh xạ CLO - PLO/PI.</p>';
+    } else {
+        $html .= '
+    <table style="font-size: 10pt;">
+        <thead>
+            <tr>
+                <th rowspan="2" style="width: 15%; vertical-align: middle;">CLOs</th>';
+        
+        foreach ($mappedPlos as $plo) {
+            $colSpan = count($mappedPis[$plo]);
+            $html .= '<th colspan="' . $colSpan . '">' . htmlspecialchars($plo) . '</th>';
+        }
+        
+        $html .= '</tr><tr>';
+        
+        foreach ($mappedPlos as $plo) {
+            foreach ($mappedPis[$plo] as $pi) {
+                $html .= '<th>' . htmlspecialchars($pi) . '</th>';
+            }
+        }
+        
+        $html .= '</tr>
+        </thead>
+        <tbody>';
+        
+        foreach ($activeClos as $clo) {
+            $html .= '<tr>
+                <td class="text-center fw-bold">' . htmlspecialchars($clo) . '</td>';
+            foreach ($mappedPlos as $plo) {
+                foreach ($mappedPis[$plo] as $pi) {
+                    
+                    // --- ĐOẠN CODE BẠN VỪA HỎI ĐƯỢC THAY VÀO ĐÂY ---
+                    if ($pi !== '') {
+                        if (isset($matrixMapping[$clo][$plo][$pi])) {
+                            $contribs = $contribMap[$clo][$plo] ?? [];
+                            $isMapped = count($contribs) > 0 ? htmlspecialchars(implode(', ', $contribs)) : 'X';
+                        } else {
+                            $isMapped = '';
+                        }
+                        $html .= '<td class="text-center" style="color: red; font-weight: bold;">' . $isMapped . '</td>';
+                    } else {
+                        if (isset($matrixMapping[$clo][$plo][''])) {
+                            $contribs = $contribMap[$clo][$plo] ?? [];
+                            $isMapped = count($contribs) > 0 ? htmlspecialchars(implode(', ', $contribs)) : 'X';
+                        } else {
+                            $isMapped = '';
+                        }
+                        $html .= '<td class="text-center" style="color: red; font-weight: bold;">' . $isMapped . '</td>';
+                    }
+                    // ---------------------------------------------
+                    
+                }
+            }
+            $html .= '</tr>';
+        }
+        
+        $html .= '</tbody>
+    </table>';
+    }
+
+    $html .= '
 </body>
 </html>';
+
 
 // =====================================================================
 // 3. KHỞI TẠO MPDF VÀ ĐẨY FILE PDF VỀ BROWSER TẢI XUỐNG
@@ -562,7 +718,7 @@ $mpdf = new \Mpdf\Mpdf([
     'margin_bottom' => 25   ,
     'margin_left'   => 30,
     'margin_right'  => 20,
-    'default_font'  => 'timesnewroman' // Tự động load font Times New Roman chuẩn Unicode tiếng Việt
+    'default_font'  => 'times' 
 ]);
 
 $mpdf->SetTitle('Đề cương học phần ' . s($module['name']));

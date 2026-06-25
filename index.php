@@ -29,9 +29,8 @@ foreach ($assessmentToolsData as $row) {
 
 $ploPiData = $pdo->query('
     SELECT p.code as plo, pi.code as pi
-    FROM plo p
-    LEFT JOIN plo_pi_relation r ON p.id = r.plo_id
-    LEFT JOIN pi ON r.pi_id = pi.id
+    FROM plos p
+    LEFT JOIN pis pi ON p.id = pi.plo_id
     ORDER BY p.id, pi.id
 ')->fetchAll(PDO::FETCH_ASSOC);
 
@@ -141,8 +140,10 @@ if($course_id){
                 <label for="year" class="form-label fw-bold">Chọn hoặc nhập năm:</label>
                 <select name="year" id="year" class="form-select">
                     <option value="">-- Chọn năm --</option>
-                    <?php for ($y = 2026; $y >= 2022; $y--): ?>
-                        <option value="<?= $y ?>" <?= $y == 2026 ? 'selected' : '' ?>>
+                    <?php 
+                    $currentYear = (int)date('Y');
+                    for ($y = $currentYear; $y >= $currentYear - 4; $y--): ?>
+                        <option value="<?= $y ?>" <?= $y == $currentYear ? 'selected' : '' ?>>
                             <?= $y ?>
                         </option>
                     <?php endfor; ?>
@@ -338,7 +339,7 @@ if($course_id){
 
         <div class="sub-section-header">
             <div class="sub-section-title">5.2. Phương pháp kiểm tra lượng giá</div>
-            <button type="button" class="btn btn-sm btn-primary" onclick="addAssessmentRow();">+ Thêm thành phần lượng giá</button>
+            <!-- <button type="button" class="btn btn-sm btn-primary" onclick="addAssessmentRow();">+ Thêm thành phần lượng giá</button> -->
         </div>
         <table class="table table-bordered align-middle" id="assessmentTable">
             <thead>
@@ -350,7 +351,7 @@ if($course_id){
                     <th style="width: 16%;">Hình thức đánh giá</th>
                     <th style="width: 18%;">Công cụ đánh giá</th>
                     <th style="width: 10%;">Trọng số (%)</th>
-                    <th style="width: 5%;">Hành động</th>
+                    <!-- <th style="width: 5%;">Hành động</th> -->
                 </tr>
             </thead>
             <tbody>
@@ -358,9 +359,17 @@ if($course_id){
         </table>
         <input type="hidden" id="assessments_json" name="assessments_json">
 
+        <!-- BẢNG MA TRẬN CLO - PLO/PI -->
+        <div class="sub-section-header mt-4">
+            <div class="sub-section-title">Ma trận chuẩn đầu ra học phần (CLOs) và chuẩn đầu ra chương trình đào tạo (PLOs/PIs)</div>
+        </div>
+        <div id="cloPloMatrixContainer" class="table-responsive mb-4" style="background: #fff; padding: 15px; border: 1px solid #dee2e6; border-radius: 4px;">
+            <div class="text-center text-muted fst-italic">Ma trận sẽ tự động cập nhật khi bạn thêm thông tin ở bảng 5.2 và bảng 4.</div>
+        </div>
+
         <div class="sub-section-header">
             <div class="sub-section-title">5.3. Phương pháp lượng giá hoạt động tự học</div>
-            <button type="button" class="btn btn-sm btn-primary" onclick="addSelfStudyRow();">+ Thêm hoạt động tự học</button>
+            <!-- <button type="button" class="btn btn-sm btn-primary" onclick="addSelfStudyRow();">+ Thêm hoạt động tự học</button> -->
         </div>
         <table class="table table-bordered align-middle" id="selfStudyTable">
             <thead>
@@ -371,7 +380,7 @@ if($course_id){
                     <th>Phương pháp tự học</th>
                     <th>Cách thức đánh giá</th>
                     <th>Minh chứng</th>
-                    <th style="width: 8%;">Hành động</th>
+                    <!-- <th style="width: 8%;">Hành động</th> -->
                 </tr>
             </thead>
             <tbody>
@@ -509,7 +518,7 @@ if($course_id){
         <div class="text-center mt-5">
             <button type="submit" class="btn btn-lg btn-success px-5 py-3 fw-bold">Lưu Toàn Bộ Đề Cương Chi Tiết</button>
         </div>
-
+            <input type="hidden" name="clo_plos_matrix" id="clo_plos_matrix">       
     </form>
 </div>
 
@@ -576,28 +585,6 @@ function normalizeListField(value) {
 }
 
 function getPloPiCatalog() {
-    const majorId = document.getElementById('majorSelect')?.value || '';
-    const fromRows = dbPloRows
-        .filter(row => !majorId || String(row.major_id || row.majorId || '') === String(majorId) || !row.major_id)
-        .map(row => ({
-            plo: row.code || row.name || row.plo || row.title || '',
-            pi: normalizeListField(row.pi || row.pis || row.indicators || row.pi_list || row.description)
-        }))
-        .filter(item => item.plo);
-
-    if (fromRows.length > 0) return fromRows;
-
-    const selectedMajor = dbMajors.find(m => String(m.id) === String(majorId));
-    if (selectedMajor) {
-        const parsed = normalizeListField(selectedMajor.plo || selectedMajor.plos || selectedMajor.objective_plo);
-        if (parsed.length > 0) {
-            return parsed.map((plo, index) => ({
-                plo,
-                pi: [`PI${index + 1}.1`, `PI${index + 1}.2`, `PI${index + 1}.3`]
-            }));
-        }
-    }
-
     return defaultPloPiCatalog;
 }
 
@@ -607,11 +594,15 @@ function buildPloOptions(selected = '') {
         .join('');
 }
 
+
 function buildPiOptions(plo, selected = '') {
     const selectedList = Array.isArray(selected) ? selected : normalizeListField(selected);
     const catalog = getPloPiCatalog();
-    const found = catalog.find(item => item.plo === plo) || catalog[0] || { pi: [] };
-    return normalizeListField(found.pi)
+
+    const found = catalog.find(item => String(item.plo) === String(plo));
+    const piList = found ? found.pi : []; 
+    
+    return normalizeListField(piList)
         .map(pi => `<option value="${h(pi)}" ${selectedList.includes(pi) ? 'selected' : ''}>${h(pi)}</option>`)
         .join('');
 }
@@ -965,13 +956,9 @@ function addAssessmentRow() {
         <!-- - PI cho chon nhieu va danh sach PI duoc nap theo PLO dang chon. -->
         <td><select class="form-select a-pi select2-multiple" name="assessment_pi_${rowId}[]" multiple="multiple">${buildPiOptions('')}</select></td>
         <td>  
-            <select class="form-select a-contribution" name="assessment_contribution[]">
-                <option value="">-- Chọn mức độ -- </option>
-                <option value="I">I – Giới thiệu</option>
-                <option value="R">R – Củng cố</option>
-                <option value="M">M – Thành thạo</option>
-                <option value="A">A – Đánh giá</option>
-            </select>
+            <div class="contribution-container">
+                <span class="text-muted fst-italic" style="font-size:0.85rem;">Vui lòng chọn PI trước...</span>
+            </div>
         </td>
         <td>
             <!-- - Hinh thuc danh gia chi duoc chon mot. -->
@@ -982,10 +969,11 @@ function addAssessmentRow() {
         </td>
         <td><select class="form-select a-tool select2-multiple" name="assessment_tool_${rowId}[]" multiple="multiple"></select></td>
         <td><input type="number" class="form-control a-weight" name="assessment_weight[]" value="0" min="0" max="100" oninput="onWeightInput(this)"></td>
-        <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
+
     `;
     tbody.appendChild(tr);
     $(tr.querySelector('.a-pi')).select2({ width: '100%', placeholder: "Chọn PI" });
+    // $(tr.querySelector('.a-contribution')).select2({ width: '100%', placeholder: "Chọn mức độ" });
     $(tr.querySelector('.a-tool')).select2({ width: '100%', placeholder: "Chọn công cụ đánh giá" });
     onAssessmentFormChange(tr.querySelector('.a-form'));
 }
@@ -1061,7 +1049,6 @@ function addSelfStudyRow() {
         <td><input type="text" class="form-control ss-method" name="self_study_method[]" placeholder="Phương pháp tự học"></td>
         <td><input type="text" class="form-control ss-assess" name="self_study_assess[]" placeholder="Cách thức đánh giá"></td>
         <td><input type="text" class="form-control ss-evidence" name="self_study_evidence[]" placeholder="Minh chứng"></td>
-        <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
     `;
     tbody.appendChild(tr);
 }
@@ -1309,8 +1296,6 @@ function gatherJsonData() {
     console.log("objective_specific: ", objective_specific)
     console.log("objective_plo: ", objective_plo)
 
-            
-
 
     // 1. In và kiểm tra các giá trị thuộc tính text/select cơ bản
     let basicData = {
@@ -1339,7 +1324,6 @@ function gatherJsonData() {
         grading_scale: document.getElementsByName('grading_scale')[0]?.value || ''
     };
 
-   
 
     console.log("1. Dữ liệu thông tin học phần cơ bản:");
     console.table(basicData);
@@ -1390,37 +1374,32 @@ function gatherJsonData() {
 
     // 3. Thu thập Thành phần lượng giá (Assessments)
     let assessments = [];
-    document.querySelectorAll('#assessmentTable tbody tr').forEach((tr) => {
-        const aClosInput = tr.querySelector('.a-clos');
-        const aClosVal = aClosInput ? aClosInput.value.trim() : '';
+    document.querySelectorAll('#assessmentTable tbody tr').forEach(tr => {
+        const cloStr = tr.querySelector('.a-clos')?.value || '';
+        const plo = tr.querySelector('.a-plo')?.value || '';
         
-        // - Luu PLO va PI thanh chuoi PLO/PI de tuong thich voi cot plo_pi hien co.
-        const ploVal = tr.querySelector('.a-plo')?.value || '';
-        const piVal = ($(tr.querySelector('.a-pi')).val() || []).join(', ');
-        const ploPiVal = [ploVal, piVal].filter(Boolean).join(' / ');
-
-        const contribution = tr.querySelector('.a-contribution')?.value || '';
-        console.log("contribution: ", contribution);
-
-        const toolVal = ($(tr.querySelector('.a-tool')).val() || []).join(', ');
-
-        const weightInput = tr.querySelector('.a-weight');
-        const weightVal = weightInput ? weightInput.value : 0;
-
-        const formVal = tr.querySelector('.a-form')?.value || '';
-
-        if (aClosVal !== '' || formVal !== '') {
-            assessments.push({
-                clos: aClosVal,
-                plo: ploVal,
-                pi: piVal,
-                plo_pi: ploPiVal,
-                contribution: contribution, // new
-                form: formVal,
-                tool: toolVal,
-                weight: weightVal
-            });
-        }
+        // Thu thập cặp giá trị chi tiết: từng PI đi kèm mảng mức độ đóng góp riêng của nó
+        let piContributionMap = [];
+        tr.querySelectorAll('.pi-contrib-select').forEach(select => {
+            const piCode = select.getAttribute('data-pi');
+            const contribs = $(select).val() || [];
+            if (piCode && contribs.length > 0) {
+                piContributionMap.push({
+                    pi: piCode,
+                    contribs: contribs
+                });
+            }
+        });
+        
+        assessments.push({
+            clos: cloStr,
+            plo: plo,
+            piMap: piContributionMap, 
+            
+            form: tr.querySelector('.a-form')?.value || '',
+            tool: ($(tr.querySelector('.a-tool')).val() || []).join(', '),
+            weight: parseFloat(tr.querySelector('.a-weight')?.value) || 0
+        });
     });
     document.getElementById('assessments_json').value = JSON.stringify(assessments);
     console.log("3. Mảng Thành phần đánh giá đã đóng gói JSON:", assessments);
@@ -1604,6 +1583,7 @@ function gatherJsonData() {
 // KHỞI TẠO CÁC CẤU HÌNH BAN ĐẦU KHI TRANG TẢI XONG
 $(document).ready(function() {
     // Tắt tất cả ngoại trừ ô Chọn năm lúc ban đầu
+
     $('form :input').not('#year').prop('disabled', true);
 
     $('#courseSelect').select2({
@@ -1617,7 +1597,7 @@ $(document).ready(function() {
         allowClear: true,
         width: '100%'
     });
-
+    
     // Xử lý sự kiện thay đổi Năm
     $('#year').on('change', function() {
         const selectedYear = $(this).val();
@@ -1638,9 +1618,15 @@ $(document).ready(function() {
         }
         
         $('form :input').not('#year, #majorSelect').prop('disabled', true);
-        $('#majorSelect').trigger('change.select2');
-        $('#courseSelect').trigger('change.select2');
+        $('#majorSelect').trigger('change');
+        $('#courseSelect').trigger('change');
     });
+
+    const currentYear = new Date().getFullYear();
+    const yearSelect = $('#year');
+    if (yearSelect.val() == currentYear) {
+        yearSelect.trigger('change');
+    }
 
     // Xử lý sự kiện thay đổi Ngành
     $('#majorSelect').on('change', function() {
@@ -1658,7 +1644,7 @@ $(document).ready(function() {
         }
         
         $('form :input').not('#year, #majorSelect, #courseSelect').prop('disabled', true);
-        $('#courseSelect').trigger('change.select2');
+        $('#courseSelect').trigger('change');
     });
 
     $('.select2-enable').select2({ width: '100%' });
@@ -1672,13 +1658,229 @@ $(document).ready(function() {
         if (code) { return code; }
         return state.text;
     }
+    
+    function updateContributionContainer(tr) {
+        const container = tr.querySelector('.contribution-container');
+        if (!container) return;
+        
+        // Lấy ID dòng hoặc tự tạo định danh duy nhất cho dòng
+        const rowId = tr.getAttribute('data-row-id') || Math.random().toString(36).substr(2, 9);
+        tr.setAttribute('data-row-id', rowId);
+
+        // Lấy danh sách các PI đang được chọn ở ô bên cạnh
+        const selectedPis = $(tr.querySelector('.a-pi')).val() || [];
+        
+        // Lưu tạm các giá trị đã chọn trước đó để tránh bị xóa mất khi người dùng chọn thêm PI mới
+        let savedSelections = {};
+        container.querySelectorAll('.pi-contrib-select').forEach(select => {
+            const piCode = select.getAttribute('data-pi');
+            savedSelections[piCode] = $(select).val() || [];
+        });
+        
+        // Xóa trắng vùng chứa để dựng lại giao diện mới
+        container.innerHTML = '';
+        
+        if (selectedPis.length === 0) {
+            container.innerHTML = '<span class="text-muted fst-italic" style="font-size:0.85rem;">Vui lòng chọn PI trước...</span>';
+            return;
+        }
+        
+        // Duyệt qua từng PI được chọn để sinh cấu trúc chọn mức độ đóng góp tương ứng
+        selectedPis.forEach(pi => {
+            const itemWrapper = document.createElement('div');
+            itemWrapper.className = 'mb-2 p-1 border rounded bg-white';
+            
+            const label = document.createElement('div');
+            label.className = 'fw-bold text-secondary mb-1 text-start';
+            label.style.fontSize = '0.8rem';
+            label.innerText = `Mức độ cho ${pi}:`;
+            
+            const select = document.createElement('select');
+            select.className = 'form-select form-select-sm pi-contrib-select select2-multiple';
+            select.setAttribute('data-pi', pi);
+            select.setAttribute('multiple', 'multiple');
+            select.setAttribute('name', `contrib_${rowId}_${pi}[]`);
+            
+            const options = [
+                { val: 'I', text: 'I – Giới thiệu' },
+                { val: 'R', text: 'R – Củng cố' },
+                { val: 'M', text: 'M – Thành thạo' },
+                { val: 'A', text: 'A – Đánh giá' }
+            ];
+            
+            // Khôi phục lại dữ liệu cũ nếu PI này đã được cấu hình trước đó
+            const oldVals = savedSelections[pi] || [];
+            options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.val;
+                option.text = opt.text;
+                if (oldVals.includes(opt.val)) option.selected = true;
+                select.appendChild(option);
+            });
+            
+            itemWrapper.appendChild(label);
+            itemWrapper.appendChild(select);
+            container.appendChild(itemWrapper);
+            
+            // Khởi tạo Select2 riêng cho ô chọn nhỏ này
+            $(select).select2({
+                width: '100%',
+                placeholder: "Chọn mức độ"
+            }).on('change', function() {
+                // Tự động vẽ lại ma trận ngay khi thay đổi giá trị đóng góp
+                if (typeof renderCloPloMatrix === 'function') renderCloPloMatrix();
+            });
+        });
+    }
+
+    function renderCloPloMatrix() {
+        const matrixContainer = document.getElementById('cloPloMatrixContainer');
+        if (!matrixContainer) return;
+        
+        const escapeHtml = (str) => String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+        // 1. Thu thập danh sách các mã CLO từ Bảng 4
+        let cloList = [];
+        document.querySelectorAll('#cloTable tbody tr').forEach((tr, idx) => {
+            const code = tr.querySelector('.c-code')?.value.trim();
+            if (code && !cloList.includes(code)) {
+                cloList.push(code);
+            }
+        });
+
+        if (cloList.length === 0) {
+            matrixContainer.innerHTML = '<div class="text-center text-muted fst-italic">Ma trận sẽ tự động cập nhật khi bạn điền mã CLO ở bảng 4 và cấu hình bảng 5.2.</div>';
+            return;
+        }
+
+        // 2. Thu thập ánh xạ phân cấp từ Bảng 5.2 theo cấu trúc mới
+        let pairMap = {}; 
+        let assessmentData = []; 
+
+        document.querySelectorAll('#assessmentTable tbody tr').forEach(tr => {
+            const cloStr = tr.querySelector('.a-clos')?.value || '';
+            const rowClos = typeof normalizeCloCodes === 'function' ? normalizeCloCodes(cloStr, 0) : cloStr.split(',').map(s => s.trim()).filter(Boolean);
+            const plo = (tr.querySelector('.a-plo')?.value || '').trim();
+            
+            if (plo && rowClos.length > 0) {
+                if (!pairMap[plo]) pairMap[plo] = new Set();
+                
+                // Duyệt qua các ô chọn mức độ đóng góp riêng lẻ của từng PI trong dòng này
+                tr.querySelectorAll('.pi-contrib-select').forEach(select => {
+                    const pi = (select.getAttribute('data-pi') || '').trim();
+                    const contribs = $(select).val() || [];
+                    
+                    if (pi && contribs.length > 0) {
+                        pairMap[plo].add(pi);
+                        
+                        assessmentData.push({
+                            clos: rowClos,
+                            plo: plo,
+                            pi: pi,
+                            contribs: contribs.map(c => c.trim())
+                        });
+                    }
+                });
+            }
+        });
+
+        // Sắp xếp danh mục cột tiêu đề để hiển thị khoa học
+        let sortedPlos = Object.keys(pairMap).sort();
+        let columns = []; 
+        let ploGroupCounts = {}; 
+
+        sortedPlos.forEach(plo => {
+            let sortedPis = Array.from(pairMap[plo]).sort();
+            if (sortedPis.length > 0) {
+                ploGroupCounts[plo] = sortedPis.length;
+                sortedPis.forEach(pi => {
+                    columns.push({ plo: plo, pi: pi });
+                });
+            }
+        });
+
+        if (columns.length === 0) {
+            matrixContainer.innerHTML = '<div class="text-center text-muted fst-italic">Vui lòng chọn PLO, chọn các PI và gán Mức độ đóng góp tương ứng tại Mục 5.2 để hiển thị ma trận.</div>';
+            return;
+        }
+
+        let columnTotalContribs = Array.from({ length: columns.length }, () => new Set());
+
+        // 3. Dựng cấu trúc giao diện HTML 3 hàng tiêu đề chính xác
+        let tableHtml = '<div class="table-responsive">';
+        tableHtml += '<table class="table table-bordered table-sm text-center align-middle">';
+        tableHtml += '<thead class="table-light">';
+        
+        // HÀNG 1: Ô phân cấp chung
+        tableHtml += '<tr>';
+        tableHtml += `<th rowspan="3" style="width: 12%; background-color: #f8f9fa;">CLOs</th>`;
+        tableHtml += `<th colspan="${columns.length}" class="text-uppercase fw-bold text-secondary">PO và giá trị PI</th>`;
+        tableHtml += '</tr>';
+
+        // HÀNG 2: Nhóm cột PLO cha
+        tableHtml += '<tr>';
+        sortedPlos.forEach(plo => {
+            tableHtml += `<th colspan="${ploGroupCounts[plo]}" style="background-color: #eef2f7; color: #333;" class="fw-bold">${escapeHtml(plo)}</th>`;
+        });
+        tableHtml += '</tr>';
+
+        // HÀNG 3: Mã chi tiết PI con
+        tableHtml += '<tr>';
+        columns.forEach(col => {
+            tableHtml += `<th style="font-size: 0.9rem; font-weight: 600; background-color: #fff;">${escapeHtml(col.pi)}</th>`;
+        });
+        tableHtml += '</tr>';
+        tableHtml += '</thead><tbody>';
+
+        // 4. Khớp nối dữ liệu vẽ từng dòng CLO
+        cloList.forEach(clo => {
+            tableHtml += `<tr>`;
+            tableHtml += `<td class="fw-bold bg-light text-dark">${escapeHtml(clo)}</td>`;
+            
+            columns.forEach((col, colIdx) => {
+                let cellContribSet = new Set();
+                
+                // Tìm chính xác mức độ đóng góp ứng với CLO, PLO và mã PI này
+                assessmentData.forEach(row => {
+                    if (row.clos.includes(clo) && row.plo === col.plo && row.pi === col.pi) {
+                        row.contribs.forEach(c => cellContribSet.add(c));
+                    }
+                });
+
+                let orderedContribs = ['I', 'R', 'M', 'A'].filter(c => cellContribSet.has(c));
+                let cellText = orderedContribs.join(', ');
+
+                // Tích lũy giá trị phục vụ hàng tổng kết cuối bảng
+                orderedContribs.forEach(c => columnTotalContribs[colIdx].add(c));
+
+                tableHtml += `<td class="" style="min-width: 60px;">${escapeHtml(cellText)}</td>`;
+            });
+            tableHtml += `</tr>`;
+        });
+
+        // 5. HÀNG CUỐI CÙNG: Dòng tổng hợp "Học phần" khử trùng lặp
+        tableHtml += '<tr class="table-info fw-bold" style="background-color: #e2f0d9 !important;">';
+        tableHtml += `<td class="text-dark text-center bg-light text-start ps-2">Học phần</td>`;
+        
+        columns.forEach((col, colIdx) => {
+            let orderedTotal = ['I', 'R', 'M', 'A'].filter(c => columnTotalContribs[colIdx].has(c));
+            let totalText = orderedTotal.join(', ');
+            tableHtml += `<td class="">${escapeHtml(totalText)}</td>`;
+        });
+        tableHtml += '</tr>';
+
+        tableHtml += '</tbody></table></div>';
+        matrixContainer.innerHTML = tableHtml;
+    }
 
     $('.select2-course').select2({
         width: '100%',
         templateSelection: formatCourseSelection
     });
 
-    // Nạp sẵn cấu trúc rỗng ban đầu cho form chuyên nghiệp
+    $('#cloTable').on('input', '.c-code', renderCloPloMatrix);
+    $('#assessmentTable').on('change', 'select', renderCloPloMatrix);
+
     addCloRow();
     // addAssessmentRow();
     // addSelfStudyRow();
@@ -1725,10 +1927,15 @@ $(document).ready(function() {
     syncCoordinatingBoard();
     document.querySelector('input[name="self_study_hours"]').addEventListener('input', syncSelfStudyTotal);
 
-    // Kích hoạt sự kiện thay đổi Năm nếu đã có giá trị sẵn (VD: mặc định 2026)
     if ($('#year').val()) {
         $('#year').trigger('change');
     }
+
+    $('#assessmentTable').on('change', '.a-pi', function() {
+        const tr = this.closest('tr');
+        updateContributionContainer(tr);
+        renderCloPloMatrix(); // Cập nhật lại giao diện ma trận
+    });
 });
 
 function syncCloToTables() {
@@ -1760,13 +1967,9 @@ function syncCloToTables() {
                 <!-- - PI dong bo la select2 multiple va thay doi theo PLO. -->
                 <td><select class="form-select a-pi select2-multiple" name="assessment_pi_${rowId}[]" multiple="multiple">${buildPiOptions('')}</select></td>
                 <td>
-                    <select class="form-select a-contribution" name="assessment_contribution[]">
-                        <option value="">-- Chọn mức độ --</option>
-                        <option value="I">I – Giới thiệu</option>
-                        <option value="R">R – Củng cố</option>
-                        <option value="M">M – Thành thạo</option>
-                        <option value="A">A – Đánh giá</option>
-                    </select>
+                    <div class="contribution-container">
+                        <span class="text-muted fst-italic" style="font-size:0.85rem;">Vui lòng chọn PI trước...</span>
+                    </div>
                 </td>
                 <td>
                     <select class="form-select a-form" name="assessment_form_${rowId}" onchange="onAssessmentFormChange(this)">
@@ -1776,10 +1979,10 @@ function syncCloToTables() {
                 </td>
                 <td><select class="form-select a-tool select2-multiple" name="assessment_tool_${rowId}[]" multiple="multiple"></select></td>
                 <td><input type="number" class="form-control a-weight" name="assessment_weight[]" value="0" min="0" max="100" oninput="onWeightInput(this)"></td>
-                <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
             `;
             assessTbody.appendChild(tr);
             $(tr.querySelector('.a-pi')).select2({ width: '100%', placeholder: "Chọn PI" });
+            // $(tr.querySelector('.a-contribution')).select2({ width: '100%', placeholder: "Chọn mức độ" });
             $(tr.querySelector('.a-tool')).select2({ width: '100%', placeholder: "Chọn công cụ đánh giá" });
             onAssessmentFormChange(tr.querySelector('.a-form'));
         }
@@ -1802,7 +2005,7 @@ function syncCloToTables() {
                 <td><input type="text" class="form-control ss-method" name="self_study_method[]" placeholder="Phương pháp tự học"></td>
                 <td><input type="text" class="form-control ss-assess" name="self_study_assess[]" placeholder="Cách thức đánh giá"></td>
                 <td><input type="text" class="form-control ss-evidence" name="self_study_evidence[]" placeholder="Minh chứng"></td>
-                <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();">Xóa</button></td>
+
             `;
             ssTbody.appendChild(tr);
         }

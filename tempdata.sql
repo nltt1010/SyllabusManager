@@ -4,8 +4,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ============================================================================
 -- 1. XÓA CÁC BẢNG NẾU ĐÃ TỒN TẠI (ĐÚNG THỨ TỰ RÀNG BUỘC)
 -- ============================================================================
-DROP TABLE IF EXISTS `books_catalog`;
 DROP TABLE IF EXISTS `resources`;
+DROP TABLE IF EXISTS `books_catalog`;
 DROP TABLE IF EXISTS `combined_topic_clos`;
 DROP TABLE IF EXISTS `combined_topics`;
 DROP TABLE IF EXISTS `practical_topic_clos`;
@@ -30,6 +30,7 @@ DROP TABLE IF EXISTS `module_relationships`;
 DROP TABLE IF EXISTS `modules`;
 DROP TABLE IF EXISTS `facilities`;
 DROP TABLE IF EXISTS `courses`;
+DROP TABLE IF EXISTS `major_objectives`;
 DROP TABLE IF EXISTS `knowledge_blocks`;
 DROP TABLE IF EXISTS `education_programs`;
 DROP TABLE IF EXISTS `majors`;
@@ -129,12 +130,15 @@ CREATE TABLE `modules` (
   `objective_general` TEXT NULL,
   `objective_po` TEXT NULL,
   `objective_plo` TEXT NULL,
+  `objective_specific` TEXT NULL,
+  `program_year` VARCHAR(20) NULL,
   `grading_scale` TEXT NULL,
+  `education_program_id` INT NULL, 
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `faculty_id` INT NULL,
-  FOREIGN KEY (`faculty_id`) REFERENCES `faculties_list`(`id`) ON DELETE SET NULL,
-  FOREIGN KEY (`course_id`) REFERENCES `courses`(`id`) ON DELETE SET NULL
+  FOREIGN KEY (`course_id`) REFERENCES `courses`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`faculty_id`) REFERENCES `faculties_list`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `module_relationships` (
@@ -171,24 +175,12 @@ CREATE TABLE `course_coordinators` (
   UNIQUE KEY `unique_module_lecturer` (`module_id`, `lecturer_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `plo` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `code` VARCHAR(50) NOT NULL UNIQUE,
-  `content` TEXT NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `pi` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `code` VARCHAR(50) NOT NULL UNIQUE,
-  `content` TEXT NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 CREATE TABLE `plo_pi_relation` (
   `plo_id` INT NOT NULL,
   `pi_id` INT NOT NULL,
   PRIMARY KEY (`plo_id`, `pi_id`),
-  FOREIGN KEY (`plo_id`) REFERENCES `plo`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`pi_id`) REFERENCES `pi`(`id`) ON DELETE CASCADE
+  FOREIGN KEY (`plo_id`) REFERENCES `plos`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`pi_id`) REFERENCES `pis`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `clos` (
@@ -199,11 +191,12 @@ CREATE TABLE `clos` (
   `domain` VARCHAR(255) NULL,
   `bloom_level` VARCHAR(255) NULL,
   `contribution_level` VARCHAR(10) NULL,
-  `pi_id` VARCHAR(255) NULL,
+  `plo_id` INT NULL,
+  `pi_id` INT NULL,
   `plo_pi` VARCHAR(255) NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`plo_id`) REFERENCES `plo`(`id`) ON DELETE SET NULL,
-  FOREIGN KEY (`pi_id`) REFERENCES `pi`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`plo_id`) REFERENCES `plos`(`id`) ON DELETE SET NULL, 
+  FOREIGN KEY (`pi_id`) REFERENCES `pis`(`id`) ON DELETE SET NULL,   
   UNIQUE KEY `unique_module_clo` (`module_id`, `code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -224,9 +217,13 @@ CREATE TABLE `pis` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `clo_plos` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
   `clo_id` INT NOT NULL,
   `plo_id` INT NOT NULL,
-  PRIMARY KEY (`clo_id`, `plo_id`),
+  `pi_id` INT NULL,
+  `contribution` VARCHAR(50) NULL,
+  UNIQUE KEY `unique_clo_plo_pi` (`clo_id`, `plo_id`, `pi_id`),
+  FOREIGN KEY (`pi_id`) REFERENCES `pis`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`clo_id`) REFERENCES `clos`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`plo_id`) REFERENCES `plos`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -237,11 +234,11 @@ CREATE TABLE `assessments` (
   `type` ENUM('Đánh giá thường xuyên', 'Đánh giá định kỳ', 'Thi cuối kỳ') NOT NULL,
   `component` VARCHAR(255) NULL,
   `clos_text` TEXT NULL,
-  `form` VARCHAR(255) NOT NULL,
-  `tool` VARCHAR(255) NULL,
-  `contribution` VARCHAR(10) NULL,
+  `form` TEXT NULL,                     
+  `tool` TEXT NULL,                     
+  `contribution` VARCHAR(50) NULL,      
   `weight` DECIMAL(5,2) NOT NULL DEFAULT 0.00,
-  `plo_pi` VARCHAR(255) NULL,
+  `plo_pi` TEXT NULL,                   
   `assessment_form_id` INT NULL,
   FOREIGN KEY (`assessment_form_id`) REFERENCES `assessment_forms`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE
@@ -265,6 +262,14 @@ CREATE TABLE `assessment_form_relation` (
   FOREIGN KEY (`assessment_form_id`) REFERENCES `assessment_forms`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `assessment_tool_relation` (
+  `assessment_id` INT NOT NULL,
+  `assessment_tool_id` INT NOT NULL,
+  PRIMARY KEY (`assessment_id`, `assessment_tool_id`),
+  FOREIGN KEY (`assessment_id`) REFERENCES `assessments`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`assessment_tool_id`) REFERENCES `assessment_tools`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `assessment_clos` (
   `assessment_id` INT NOT NULL,
   `clo_id` INT NOT NULL,
@@ -281,6 +286,7 @@ CREATE TABLE `self_study_activities` (
   `method` TEXT NULL,
   `assessment_method` TEXT NULL,
   `evidence` TEXT NULL,
+  `clos_text` TEXT NULL,                
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -389,39 +395,9 @@ CREATE TABLE `resources` (
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE `books_catalog` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `title` VARCHAR(255) NOT NULL,
-  `editor` VARCHAR(255) NULL,
-  `publisher` VARCHAR(255) NULL,
-  `year` VARCHAR(50) NULL,
-  `identifier` VARCHAR(100) NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `faculties_list` (
+CREATE TABLE `facilities` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `departments_list` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `lecturers` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(255) NOT NULL,
-  `email` VARCHAR(255) DEFAULT NULL,
-  `phone` VARCHAR(50) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `course_coordinators` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `module_id` INT NOT NULL,
-  `lecturer_id` INT NOT NULL,
-  FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`lecturer_id`) REFERENCES `lecturers`(`id`) ON DELETE CASCADE,
-  UNIQUE KEY `unique_module_lecturer` (`module_id`, `lecturer_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO `lecturers` (`id`, `name`) VALUES 
@@ -429,30 +405,6 @@ INSERT INTO `lecturers` (`id`, `name`) VALUES
 (2, 'TS. Trần Thị B'),
 (3, 'ThS. Phạm Minh C'),
 (4, 'PGS.TS. Lê Hoàng D');
-
-
-/* Legacy course coordinator seed moved below modules
--- Học phần có ID = 1 (Môn đầu tiên trong CSDL) được điều phối bởi giảng viên 1 và 2
-(1, 1), 
-(1, 2),
-
--- Học phần có ID = 2 được điều phối bởi giảng viên 2 và 3
-(2, 2),
-(2, 3),
-
--- Học phần có ID = 3 chỉ có 1 người điều phối là giảng viên 4
-(3, 4),
-
--- Học phần có ID = 94 (Môn Chăm sóc sức khỏe người bệnh của ngành Điều dưỡng trong SQL của bạn)
--- được điều phối bởi giảng viên 1, 3 và 4
-(94, 1),
-(94, 3),
-(94, 4),
-
--- Học phần có ID = 95 được điều phối bởi giảng viên 2
-(95, 2); */
-
-
 
 -- Master data
 INSERT INTO `majors` (`id`, `name`) VALUES
@@ -536,19 +488,28 @@ INSERT INTO `courses` (`id`, `major_id`, `block_id`, `code`, `name`, `total_hour
 (9, 3, 7, 'TEST009', 'Chăm sóc người bệnh nội khoa', 60, 30, 30, 9),
 (10, 1, 1, 'TEST010', 'Tin học ứng dụng y học', 45, 20, 25, 10);
 
-INSERT INTO `modules` (`id`, `course_id`, `code`, `name`, `type`, `credits`, `credits_theory`, `credits_practice`, `total_hours`, `theory_hours`, `practical_hours`, `self_study_hours`, `target_programs`, `expected_semester`, `expected_year`, `prerequisite_modules`, `parallel_modules`, `previous_modules`, `department_in_charge`, `coordinating_board`, `faculty_in_charge`, `description`, `objectives`, `grading_scale`) VALUES
-(1, 1, 'TEST001', 'Giải phẫu học đại cương', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Y khoa năm 1', 'Học kỳ I', '2026-2027', '', '', '', 'Bộ môn Giải phẫu', 'Ban y học cơ sở', 'Khoa Y', 'Học phần cung cấp kiến thức nền tảng về cấu trúc cơ thể người.', 'Mô tả và xác định được các cấu trúc giải phẫu cơ bản.', 'Thang điểm 10'),
-(2, 2, 'TEST002', 'Sinh lý học đại cương', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên khối sức khỏe năm 1', 'Học kỳ II', '2026-2027', '', '', '', 'Bộ môn Sinh lý', 'Ban y học cơ sở', 'Khoa Y', 'Học phần trình bày hoạt động chức năng của cơ thể bình thường.', 'Giải thích được các cơ chế điều hòa sinh lý cơ bản.', 'Thang điểm 10'),
-(3, 3, 'TEST003', 'Bệnh học cơ sở', 'Bắt buộc', 3, 2, 1, 45, 35, 10, 70, 'Sinh viên Y khoa năm 2', 'Học kỳ I', '2026-2027', '', '', '', 'Bộ môn Bệnh học', 'Ban tiền lâm sàng', 'Khoa Y', 'Học phần giới thiệu cơ chế bệnh sinh và tổn thương mô học cơ bản.', 'Phân tích được mối liên hệ giữa tổn thương và biểu hiện bệnh.', 'Thang điểm 10'),
-(4, 4, 'TEST004', 'Kỹ năng khám lâm sàng', 'Bắt buộc', 4, 2, 2, 60, 25, 35, 80, 'Sinh viên Y khoa năm 3', 'Học kỳ II', '2026-2027', '', '', '', 'Bộ môn Nội', 'Ban lâm sàng', 'Khoa Y', 'Học phần rèn luyện kỹ năng hỏi bệnh và khám bệnh cơ bản.', 'Thực hiện đúng quy trình khám lâm sàng cơ bản.', 'Thang điểm 10'),
-(5, 5, 'TEST005', 'Hóa dược cơ bản', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược năm 2', 'Học kỳ I', '2026-2027', '', '', '', 'Bộ môn Hóa dược', 'Ban đào tạo Dược', 'Khoa Dược', 'Học phần cung cấp kiến thức về cấu trúc và tính chất hóa học của thuốc.', 'Phân tích được liên quan cấu trúc - tác dụng của thuốc.', 'Thang điểm 10'),
-(6, 6, 'TEST006', 'Dược lý lâm sàng','Bắt buộc', 4, 3, 1, 60, 45, 15, 90, 'Sinh viên Dược năm 4', 'Học kỳ II', '2026-2027', '', '', '', 'Bộ môn Dược lý', 'Ban đào tạo Dược', 'Khoa Dược', 'Học phần hướng dẫn sử dụng thuốc hợp lý, an toàn và hiệu quả.', 'Đề xuất được lựa chọn thuốc phù hợp tình huống lâm sàng.', 'Thang điểm 10'),
-(7, 7, 'TEST007', 'Quản lý cung ứng thuốc', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Dược năm 4', 'Học kỳ I', '2026-2027', '', '', '', 'Bộ môn Quản lý Dược', 'Ban đào tạo Dược', 'Khoa Dược', 'Học phần giới thiệu quy trình mua sắm, bảo quản và phân phối thuốc.', 'Lập được kế hoạch cung ứng thuốc ở đơn vị y tế.', 'Thang điểm 10'),
-(8, 8, 'TEST008', 'Điều dưỡng cơ bản', 'Bắt buộc', 4, 2, 2, 60, 25, 35, 80, 'Sinh viên Điều dưỡng năm 1', 'Học kỳ II', '2026-2027', '', '', '', 'Bộ môn Điều dưỡng cơ bản', 'Ban Điều dưỡng', 'Khoa Điều dưỡng', 'Học phần rèn luyện kỹ năng chăm sóc cơ bản và kiểm soát nhiễm khuẩn.', 'Thực hiện được các quy trình chăm sóc an toàn.', 'Thang điểm 10'),
-(9, 9, 'TEST009', 'Chăm sóc người bệnh nội khoa', 'Bắt buộc', 4, 2, 2, 60, 30, 30, 90, 'Sinh viên Điều dưỡng năm 3', 'Học kỳ I', '2026-2027', '', '', '', 'Bộ môn Điều dưỡng nội', 'Ban Điều dưỡng', 'Khoa Điều dưỡng', 'Học phần hướng dẫn chăm sóc người bệnh mắc bệnh nội khoa thường gặp.', 'Xây dựng được kế hoạch chăm sóc người bệnh nội khoa.', 'Thang điểm 10'),
-(10, 10, 'TEST010', 'Tin học ứng dụng y học', 'Tự chọn', 3, 1, 2, 45, 20, 25, 60, 'Sinh viên khối sức khỏe', 'Học kỳ II', '2026-2027', '', '', '', 'Trung tâm Công nghệ thông tin', 'Ban liên khoa', 'Khoa Khoa học cơ bản', 'Học phần rèn luyện kỹ năng nhập liệu, xử lý dữ liệu và tra cứu y văn.', 'Sử dụng được công cụ số trong học tập và nghiên cứu y học.', 'Thang điểm 10');
 
--- Bảng 10: module_relationships
+INSERT INTO `modules` (
+    `id`, `course_id`, `code`, `name`, `type`, `credits`, `credits_theory`, 
+    `credits_practice`, `total_hours`, `theory_hours`, `practical_hours`, 
+    `self_study_hours`, `target_programs`, `expected_semester`, `expected_year`, 
+    `prerequisite_modules`, `parallel_modules`, `previous_modules`, 
+    `department_in_charge`, `coordinating_board`, `faculty_in_charge`, 
+    `description`, `objective_general`, `objective_po`, `objective_plo`, 
+    `objective_specific`, `program_year`, `grading_scale`, `education_program_id`, `faculty_id`
+) VALUES
+(1, 1, 'TEST001', 'Giải phẫu học đại cương', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Y khoa năm 1', 'Học kỳ I', '2026-2027', NULL, NULL, NULL, 'Bộ môn Giải phẫu', 'Ban y học cơ sở', 'Khoa Y', 'Học phần cung cấp kiến thức nền tảng về cấu trúc cơ thể người.', 'Mô tả và xác định được các cấu trúc giải phẫu cơ bản.', NULL, NULL, NULL, '2026', 'Thang điểm 10', 1, NULL),
+(2, 2, 'TEST002', 'Sinh lý học đại cương', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên khối sức khỏe năm 1', 'Học kỳ II', '2026-2027', NULL, NULL, NULL, 'Bộ môn Sinh lý', 'Ban y học cơ sở', 'Khoa Y', 'Học phần trình bày hoạt động chức năng của cơ thể bình thường.', 'Giải thích được các cơ chế điều hòa sinh lý cơ bản.', NULL, NULL, NULL, '2026', 'Thang điểm 10', 1, NULL),
+(3, 3, 'TEST003', 'Bệnh học cơ sở', 'Bắt buộc', 3, 2, 1, 45, 35, 10, 70, 'Sinh viên Y khoa năm 2', 'Học kỳ I', '2026-2027', NULL, NULL, NULL, 'Bộ môn Bệnh học', 'Ban tiền lâm sàng', 'Khoa Y', 'Học phần giới thiệu cơ chế bệnh sinh và tổn thương mô học cơ bản.', 'Phân tích được mối liên hệ giữa tổn thương và biểu hiện bệnh.', NULL, NULL, NULL, '2026', 'Thang điểm 10', 1, NULL),
+(4, 4, 'TEST004', 'Kỹ năng khám lâm sàng', 'Bắt buộc', 4, 2, 2, 60, 25, 35, 80, 'Sinh viên Y khoa năm 3', 'Học kỳ II', '2026-2027', NULL, NULL, NULL, 'Bộ môn Nội', 'Ban lâm sàng', 'Khoa Y', 'Học phần rèn luyện kỹ năng hỏi bệnh và khám bệnh cơ bản.', 'Thực hiện đúng quy trình khám lâm sàng cơ bản.', NULL, NULL, NULL, '2026', 'Thang điểm 10', 1, NULL),
+(5, 5, 'TEST005', 'Hóa dược cơ bản', 'Bắt buộc', 3, 2, 1, 45, 30, 15, 60, 'Sinh viên Dược năm 2', 'Học kỳ I', '2026-2027', NULL, NULL, NULL, 'Bộ môn Hóa dược', 'Ban đào tạo Dược', 'Khoa Dược', 'Học phần cung cấp kiến thức về cấu trúc và tính chất hóa học của thuốc.', 'Phân tích được liên quan cấu trúc - tác dụng của thuốc.', NULL, NULL, NULL, '2026', 'Thang điểm 10', 2, NULL),
+(6, 6, 'TEST006', 'Dược lý lâm sàng', 'Bắt buộc', 4, 3, 1, 60, 45, 15, 90, 'Sinh viên Dược năm 4', 'Học kỳ II', '2026-2027', NULL, NULL, NULL, 'Bộ môn Dược lý', 'Ban đào tạo Dược', 'Khoa Dược', 'Học phần hướng dẫn sử dụng thuốc hợp lý, an toàn và hiệu quả.', 'Đề xuất được lựa chọn thuốc phù hợp tình huống lâm sàng.', NULL, NULL, NULL, '2026', 'Thang điểm 10', 2, NULL),
+(7, 7, 'TEST007', 'Quản lý cung ứng thuốc', 'Tự chọn', 2, 1, 1, 30, 20, 10, 45, 'Sinh viên Dược năm 4', 'Học kỳ I', '2026-2027', NULL, NULL, NULL, 'Bộ môn Quản lý Dược', 'Ban đào tạo Dược', 'Khoa Dược', 'Học phần giới thiệu quy trình mua sắm, bảo quản và phân phối thuốc.', 'Lập được kế hoạch cung ứng thuốc ở đơn vị y tế.', NULL, NULL, NULL, '2026', 'Thang điểm 10', 2, NULL),
+(8, 8, 'TEST008', 'Điều dưỡng cơ bản', 'Bắt buộc', 4, 2, 2, 60, 25, 35, 80, 'Sinh viên Điều dưỡng năm 1', 'Học kỳ II', '2026-2027', NULL, NULL, NULL, 'Bộ môn Điều dưỡng cơ bản', 'Ban Điều dưỡng', 'Khoa Điều dưỡng', 'Học phần rèn luyện kỹ năng chăm sóc cơ bản và kiểm soát nhiễm khuẩn.', 'Thực hiện được các quy trình chăm sóc an toàn.', NULL, NULL, NULL, '2026', 'Thang điểm 10', 3, NULL),
+(9, 9, 'TEST009', 'Chăm sóc người bệnh nội khoa', 'Bắt buộc', 4, 2, 2, 60, 30, 30, 90, 'Sinh viên Điều dưỡng năm 3', 'Học kỳ I', '2026-2027', NULL, NULL, NULL, 'Bộ môn Điều dưỡng nội', 'Ban Điều dưỡng', 'Khoa Điều dưỡng', 'Học phần hướng dẫn chăm sóc người bệnh mắc bệnh nội khoa thường gặp.', 'Xây dựng được kế hoạch chăm sóc người bệnh nội khoa.', NULL, NULL, NULL, '2026', 'Thang điểm 10', 3, NULL),
+(10, 10, 'TEST010', 'Tin học ứng dụng y học', 'Tự chọn', 3, 1, 2, 45, 20, 25, 60, 'Sinh viên khối sức khỏe', 'Học kỳ II', '2026-2027', NULL, NULL, NULL, 'Trung tâm Công nghệ thông tin', 'Ban liên khoa', 'Khoa Khoa học cơ bản', 'Học phần rèn luyện kỹ năng nhập liệu, xử lý dữ liệu và tra cứu y văn.', 'Sử dụng được công cụ số trong học tập và nghiên cứu y học.', NULL, NULL, NULL, '2026', 'Thang điểm 10', NULL, NULL);
+
+
 INSERT INTO `module_relationships` (`id`, `module_id`, `related_course_id`, `relation_type`) VALUES
 (1, 2, 1, 'Học trước'), (2, 3, 2, 'Học trước'), (3, 4, 3, 'Song hành'), (4, 6, 5, 'Học trước'), (5, 9, 8, 'Học trước'),
 (6, 4, 1, 'Học trước'), (7, 4, 2, 'Học trước'), (8, 6, 2, 'Học trước'), (9, 9, 2, 'Học trước'), (10, 7, 5, 'Học trước');
@@ -602,34 +563,8 @@ INSERT INTO `self_study_activities` (`module_id`, `activity_name`, `duration_hou
 INSERT INTO `self_study_clos` (`self_study_activity_id`, `clo_id`)
 SELECT s.id, c.id FROM self_study_activities s JOIN clos c ON c.module_id = s.module_id AND c.code IN ('CLO1', 'CLO2');
 
-/* Legacy theory_topics seed disabled
-(1,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(1,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
-(2,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(2,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
-(3,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(3,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
-(4,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(4,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
-(5,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(5,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
-(6,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(6,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
-(7,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(7,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
-(8,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(8,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
-(9,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(9,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2'),
-(10,'Chương 1','Tổng quan học phần','Thuyết trình ngắn',4,8,'Giáo trình chính - chương 1'),(10,'Bài 1','Nội dung cốt lõi 1','Thảo luận nhóm',6,10,'Giáo trình chính - chương 2');
-*/
 
-/* Legacy double-encoded theory_topics seed disabled
-(1,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(1,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
-(2,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(2,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
-(3,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(3,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
-(4,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(4,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
-(5,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(5,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
-(6,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(6,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
-(7,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(7,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
-(8,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(8,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
-(9,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(9,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10),
-(10,'ChÆ°Æ¡ng 1','Tá»•ng quan há»c pháº§n','Thuyáº¿t trÃ¬nh ngáº¯n',4,8),(10,'BÃ i 1','Ná»™i dung cá»‘t lÃµi 1','Tháº£o luáº­n nhÃ³m',6,10);
-
-*/
-
-INSERT INTO `theory_topics` (`module_id`, `chapter`, `title`, `method`, `class_hours`, `self_study_hours`) VALUES
+INSERT INTO `theory_topics` (`module_id`, `chapter`, `title`, `teaching_method`, `class_hours`, `self_study_hours`) VALUES
 (1,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(1,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10),
 (2,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(2,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10),
 (3,'Chuong 1','Tong quan hoc phan','Thuyet trinh ngan',4,8),(3,'Bai 1','Noi dung cot loi 1','Thao luan nhom',6,10),
@@ -644,7 +579,7 @@ INSERT INTO `theory_topics` (`module_id`, `chapter`, `title`, `method`, `class_h
 INSERT INTO `theory_topic_clos` (`theory_topic_id`, `clo_id`)
 SELECT t.id, c.id FROM theory_topics t JOIN clos c ON c.module_id = t.module_id AND c.code IN ('CLO1', 'CLO2');
 
-INSERT INTO `practical_topics` (`module_id`, `topic`, `content`, `method`, `lab_hours`, `facility_id`) VALUES
+INSERT INTO `practical_topics` (`module_id`, `topic`, `content`, `teaching_method`, `lab_hours`, `facility_id`) VALUES
 (1,'Thực hành 1','Nhận diện cấu trúc/mô hình chính','Thực hành nhóm',4,1),(1,'Thực hành 2','Hoàn thành bảng kiểm kỹ năng','Trạm kỹ năng',5,2),
 (2,'Thực hành 1','Đo và phân tích thông số sinh lý','Thực hành nhóm',4,4),(2,'Thực hành 2','Hoàn thành bảng kiểm kỹ năng','Trạm kỹ năng',5,2),
 (3,'Thực hành 1','Quan sát tiêu bản và mô tả tổn thương','Thực hành nhóm',4,1),(3,'Thực hành 2','Hoàn thành bảng kiểm kỹ năng','Trạm kỹ năng',5,2),
@@ -659,7 +594,7 @@ INSERT INTO `practical_topics` (`module_id`, `topic`, `content`, `method`, `lab_
 INSERT INTO `practical_topic_clos` (`practical_topic_id`, `clo_id`)
 SELECT p.id, c.id FROM practical_topics p JOIN clos c ON c.module_id = p.module_id AND c.code IN ('CLO2', 'CLO3');
 
-INSERT INTO `combined_topics` (`module_id`, `sort_order`, `content`, `method`, `theory_hours`, `practical_hours`, `self_study_hours`, `facility_id`) VALUES
+INSERT INTO `combined_topics` (`module_id`, `sort_order`, `content`, `teaching_method`, `theory_hours`, `practical_hours`, `self_study_hours`, `facility_id`) VALUES
 (1,1,'Tích hợp lý thuyết và thực hành tình huống 1','Case-based learning',2,3,5,1),(1,2,'Tổng kết học phần và phản hồi','Seminar',1,2,4,2),
 (2,1,'Tích hợp lý thuyết và thực hành tình huống 1','Case-based learning',2,3,5,4),(2,2,'Tổng kết học phần và phản hồi','Seminar',1,2,4,2),
 (3,1,'Tích hợp lý thuyết và thực hành tình huống 1','Case-based learning',2,3,5,1),(3,2,'Tổng kết học phần và phản hồi','Seminar',1,2,4,2),
@@ -1005,38 +940,42 @@ INSERT INTO `course_coordinators` (`module_id`, `lecturer_id`) VALUES
 (94, 4),
 (95, 2);
 
-UPDATE `modules` m
-JOIN `courses` c ON c.`id` = m.`course_id`
-SET m.`education_program_id` = CASE c.`major_id`
-  WHEN 1 THEN 1
-  WHEN 2 THEN 2
-  WHEN 3 THEN 3
-  ELSE NULL
-END
-WHERE m.`education_program_id` IS NULL;
+-- 1. Chèn dữ liệu cho bảng plos
+INSERT INTO `plos` (`id`, `code`, `content`) VALUES
+(1, 'PLO1', 'Kiến thức nền tảng về khoa học sức khỏe và điều dưỡng'),
+(2, 'PLO2', 'Thực hiện thành thạo các kỹ thuật điều dưỡng cơ bản và chuyên sâu'),
+(3, 'PLO3', 'Giao tiếp hiệu quả và làm việc nhóm trong môi trường y tế'),
+(4, 'PLO4', 'Áp dụng tư duy phản biện và nghiên cứu khoa học trong thực hành'),
+(5, 'PLO5', 'Tuân thủ đạo đức nghề nghiệp và pháp luật y tế');
 
-UPDATE `theory_topics`
-SET `delivery_mode` = 'in_person',
-    `teaching_method` = COALESCE(NULLIF(`teaching_method`, ''), `method`)
-WHERE `delivery_mode` IS NULL;
+-- 2. Chèn dữ liệu cho bảng pis (Mỗi PLO có 4 PI)
+INSERT INTO `pis` (`id`, `plo_id`, `code`, `content`) VALUES
+(1, 1, 'PI1.1', 'Giải thích được các nguyên lý sinh lý học cơ bản'),
+(2, 1, 'PI1.2', 'Mô tả được các mô hình chăm sóc sức khỏe hiện đại'),
+(3, 1, 'PI1.3', 'Vận dụng kiến thức dược lý vào thực hành lâm sàng'),
+(4, 1, 'PI1.4', 'Phân tích được các yếu tố ảnh hưởng đến sức khỏe cộng đồng'),
 
-UPDATE `practical_topics`
-SET `delivery_mode` = 'in_person',
-    `teaching_method` = COALESCE(NULLIF(`teaching_method`, ''), `method`)
-WHERE `delivery_mode` IS NULL;
+(5, 2, 'PI2.1', 'Thực hiện thành thạo quy trình chăm sóc người bệnh'),
+(6, 2, 'PI2.2', 'Sử dụng đúng cách các thiết bị y tế hiện đại'),
+(7, 2, 'PI2.3', 'Đảm bảo an toàn người bệnh trong thủ thuật'),
+(8, 2, 'PI2.4', 'Thực hiện sơ cứu cơ bản trong các tình huống khẩn cấp'),
 
-UPDATE `combined_topics`
-SET `delivery_mode` = 'in_person',
-    `teaching_method` = COALESCE(NULLIF(`teaching_method`, ''), `method`)
-WHERE `delivery_mode` IS NULL;
+(9, 3, 'PI3.1', 'Giao tiếp chuyên nghiệp với người bệnh và thân nhân'),
+(10, 3, 'PI3.2', 'Phối hợp hiệu quả với đồng nghiệp trong ê-kíp điều trị'),
+(11, 3, 'PI3.3', 'Sử dụng ngoại ngữ trong giao tiếp chuyên môn'),
+(12, 3, 'PI3.4', 'Quản lý thời gian và giải quyết xung đột trong nhóm'),
 
-UPDATE `theory_topics` child
-JOIN `theory_topics` parent
-  ON parent.`module_id` = child.`module_id`
- AND parent.`chapter` LIKE 'Ch%'
-SET child.`parent_id` = parent.`id`
-WHERE child.`chapter` LIKE 'B%'
-  AND child.`parent_id` IS NULL;
+(13, 4, 'PI4.1', 'Đánh giá được các vấn đề lâm sàng dựa trên bằng chứng'),
+(14, 4, 'PI4.2', 'Đề xuất các giải pháp cải tiến quy trình chăm sóc'),
+(15, 4, 'PI4.3', 'Trình bày kết quả nghiên cứu khoa học'),
+(16, 4, 'PI4.4', 'Sử dụng công nghệ thông tin trong hỗ trợ quyết định lâm sàng'),
+
+(17, 5, 'PI5.1', 'Thực hiện theo các quy định về đạo đức điều dưỡng'),
+(18, 5, 'PI5.2', 'Tuân thủ các văn bản pháp luật về khám chữa bệnh'),
+(19, 5, 'PI5.3', 'Thể hiện thái độ tôn trọng và thấu cảm với người bệnh'),
+(20, 5, 'PI5.4', 'Tham gia các hoạt động cộng đồng và xã hội');
+
+
 
 SET FOREIGN_KEY_CHECKS = 1;
 

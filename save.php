@@ -31,6 +31,10 @@ try {
     $ensureColumn('modules', 'objective_specific', 'TEXT NULL');
     $ensureColumn('modules', 'program_year', 'VARCHAR(20) NULL');
 
+    $ensureColumn('modules', 'objective_general', 'TEXT NULL');
+    $ensureColumn('modules', 'objective_po', 'TEXT NULL');
+    $ensureColumn('modules', 'objective_plo', 'TEXT NULL');
+
     $ensureColumn('assessments', 'clos_text', 'TEXT NULL');
     $ensureColumn('assessments', 'plo_pi', 'TEXT NULL');
     $ensureColumn('assessments', 'contribution', 'VARCHAR(50) NULL');
@@ -54,6 +58,23 @@ try {
     $ensureColumn('combined_topics', 'hours_online', 'INT NULL DEFAULT 0');
     $ensureColumn('combined_topics', 'pedagogy', 'TEXT NULL');
     $ensureColumn('combined_topics', 'clos_text', 'TEXT NULL');
+
+    // Migrate clo_plos
+    try {
+        $stmt = $pdo->query("SHOW COLUMNS FROM `clo_plos` LIKE 'id'");
+        if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+            $pdo->exec("ALTER TABLE `clo_plos` DROP FOREIGN KEY clo_plos_ibfk_1");
+            $pdo->exec("ALTER TABLE `clo_plos` DROP FOREIGN KEY clo_plos_ibfk_2");
+            $pdo->exec("ALTER TABLE `clo_plos` DROP FOREIGN KEY clo_plos_ibfk_3");
+            $pdo->exec("ALTER TABLE `clo_plos` DROP PRIMARY KEY");
+            $pdo->exec("ALTER TABLE `clo_plos` ADD `id` INT AUTO_INCREMENT PRIMARY KEY FIRST");
+            $pdo->exec("ALTER TABLE `clo_plos` MODIFY `pi_id` INT NULL");
+            $pdo->exec("ALTER TABLE `clo_plos` ADD UNIQUE KEY `unique_clo_plo_pi` (`clo_id`, `plo_id`, `pi_id`)");
+            $pdo->exec("ALTER TABLE `clo_plos` ADD CONSTRAINT `clo_plos_ibfk_1` FOREIGN KEY (`pi_id`) REFERENCES `pis`(`id`) ON DELETE CASCADE");
+            $pdo->exec("ALTER TABLE `clo_plos` ADD CONSTRAINT `clo_plos_ibfk_2` FOREIGN KEY (`clo_id`) REFERENCES `clos`(`id`) ON DELETE CASCADE");
+            $pdo->exec("ALTER TABLE `clo_plos` ADD CONSTRAINT `clo_plos_ibfk_3` FOREIGN KEY (`plo_id`) REFERENCES `plos`(`id`) ON DELETE CASCADE");
+        }
+    } catch (Exception $e) {}
 
     $normalizePostedList = function ($value): array {
         if (is_array($value)) {
@@ -498,39 +519,19 @@ try {
                 target_programs = ?, expected_semester = ?, expected_year = ?,
                 prerequisite_modules = ?, parallel_modules = ?, previous_modules = ?,
                 department_in_charge = ?, coordinating_board = ?, faculty_in_charge = ?,
-                description = ?, objective_general = ?, objective_po = ?, objective_plo = ?, objective_specific = ?,
+                description = ?, objective_general = ?, objective_plo = ?, objective_specific = ?,
                 grading_scale = ?, faculty_id = ?, program_year = ?
             WHERE id = ?
         ');
         $stmt->execute([
-            $courseId,
-            $code,
-            $name,
-            $storedType,
-            $credits,
-            $creditsTheory,
-            $creditsPractice,
-            $totalHours,
-            $theoryHours,
-            $practicalHours,
-            $selfStudyHours,
-            $targetPrograms,
-            $expectedSemester,
-            $expectedYear,
-            $prerequisiteText,
-            $parallelText,
-            $previousText,
-            $departmentText,
-            $coordinatingBoardText,
-            $facultyText,
-            $description,
-            $objectiveGeneral,
-            $objectiveSpecific,
-            $objectivePlo,
-            $objectiveSpecific,
-            $gradingScale,
-            $facultyId,
-            $programYear,
+            $courseId, $code, $name, $storedType,
+            $credits, $creditsTheory, $creditsPractice,
+            $totalHours, $theoryHours, $practicalHours, $selfStudyHours,
+            $targetPrograms, $expectedSemester, $expectedYear,
+            $prerequisiteText, $parallelText, $previousText,
+            $departmentText, $coordinatingBoardText, $facultyText,
+            $description, $objectiveGeneral, $objectivePlo, $objectiveSpecific,
+            $gradingScale, $facultyId, $programYear,
             $moduleId,
         ]);
 
@@ -549,6 +550,10 @@ try {
             $stmtDelete->execute([$moduleId]);
         }
 
+        // Xóa ma trận CLO-PLO cũ trước khi xóa CLO (do có FK constraint)
+        $stmtDelCloPlos = $pdo->prepare('DELETE FROM clo_plos WHERE clo_id IN (SELECT id FROM clos WHERE module_id = ?)');
+        $stmtDelCloPlos->execute([$moduleId]);
+
         $stmt = $pdo->prepare('DELETE FROM clos WHERE module_id = ?');
         $stmt->execute([$moduleId]);
     } else {
@@ -560,7 +565,7 @@ try {
                 target_programs, expected_semester, expected_year,
                 prerequisite_modules, parallel_modules, previous_modules,
                 department_in_charge, coordinating_board, faculty_in_charge,
-                description, objective_general, objective_po, objective_plo, objective_specific,
+                description, objective_general, objective_plo, objective_specific,
                 grading_scale, faculty_id, program_year
             ) VALUES (
                 ?, ?, ?, ?,
@@ -569,39 +574,19 @@ try {
                 ?, ?, ?,
                 ?, ?, ?,
                 ?, ?, ?,
-                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?,
                 ?, ?, ?
             )
         ');
         $stmt->execute([
-            $courseId,
-            $code,
-            $name,
-            $storedType,
-            $credits,
-            $creditsTheory,
-            $creditsPractice,
-            $totalHours,
-            $theoryHours,
-            $practicalHours,
-            $selfStudyHours,
-            $targetPrograms,
-            $expectedSemester,
-            $expectedYear,
-            $prerequisiteText,
-            $parallelText,
-            $previousText,
-            $departmentText,
-            $coordinatingBoardText,
-            $facultyText,
-            $description,
-            $objectiveGeneral,
-            $objectiveSpecific,
-            $objectivePlo,
-            $objectiveSpecific,
-            $gradingScale,
-            $facultyId,
-            $programYear,
+            $courseId, $code, $name, $storedType,
+            $credits, $creditsTheory, $creditsPractice,
+            $totalHours, $theoryHours, $practicalHours, $selfStudyHours,
+            $targetPrograms, $expectedSemester, $expectedYear,
+            $prerequisiteText, $parallelText, $previousText,
+            $departmentText, $coordinatingBoardText, $facultyText,
+            $description, $objectiveGeneral, $objectivePlo, $objectiveSpecific,
+            $gradingScale, $facultyId, $programYear,
         ]);
         $moduleId = (int)$pdo->lastInsertId();
     }
@@ -723,25 +708,41 @@ try {
         $ploIdByCode[strtoupper(trim($row['code']))] = (int)$row['id'];
     }
 
-    $linkPloCodesToClos = function (array $ploCodes, string $cloCodesString) use ($pdo, $resolveCloIds, $ploIdByCode) {
-        $cloIds = $resolveCloIds($cloCodesString);
-        if (empty($cloIds) || empty($ploCodes)) {
-            return;
-        }
+    $piIdByCode = [];
+    foreach ($pdo->query('SELECT id, code FROM pis')->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $piIdByCode[strtoupper(trim($row['code']))] = (int)$row['id'];
+    }
 
-        $stmt = $pdo->prepare('INSERT IGNORE INTO clo_plos (clo_id, plo_id) VALUES (?, ?)');
-        foreach ($ploCodes as $ploCode) {
-            $ploKey = strtoupper(trim($ploCode));
-            $ploId = $ploIdByCode[$ploKey] ?? null;
-            if (!$ploId) {
-                continue;
-            }
-            foreach ($cloIds as $cloId) {
-                $stmt->execute([$cloId, $ploId]);
-            }
-        }
-    };
+    // $linkPloPiToClos = function (array $ploCodes, array $piCodes, string $cloCodesString) use ($pdo, $resolveCloIds, $ploIdByCode, $piIdByCode) {
+    //     $cloIds = $resolveCloIds($cloCodesString);
+    //     if (empty($cloIds) || empty($ploCodes)) {
+    //         return;
+    //     }
 
+    //     $stmt = $pdo->prepare('INSERT IGNORE INTO clo_plos (clo_id, plo_id, pi_id) VALUES (?, ?, ?)');
+    //     foreach ($ploCodes as $ploCode) {
+    //         $ploKey = strtoupper(trim($ploCode));
+    //         $ploId = $ploIdByCode[$ploKey] ?? null;
+    //         if (!$ploId) {
+    //             continue;
+    //         }
+    //         if (!empty($piCodes)) {
+    //             foreach ($piCodes as $piCode) {
+    //                 $piKey = strtoupper(trim($piCode));
+    //                 $piId = $piIdByCode[$piKey] ?? null;
+    //                 foreach ($cloIds as $cloId) {
+    //                     $stmt->execute([$cloId, $ploId, $piId]);
+    //                 }
+    //             }
+    //         } else {
+    //             foreach ($cloIds as $cloId) {
+    //                 $stmt->execute([$cloId, $ploId, null]);
+    //             }
+    //         }
+    //     }
+    // };
+
+    
     $groupedAssessments = [];
     foreach ($assessmentRows as $row) {
         $component = $normalizeAssessmentComponent((string)($row['form'] ?? $row['component'] ?? ''));
@@ -783,6 +784,7 @@ try {
                 'tools' => [],
                 'weight' => 0.0,
                 'plo_codes' => [],
+                'pi_codes' => [],
             ];
         }
 
@@ -818,9 +820,10 @@ try {
         $groupedAssessments[$component]['weight'] += $weight;
     }
 
+    
     $stmtAssessment = $pdo->prepare('
-        INSERT INTO assessments (module_id, component, weight, clos_text, plo_pi, contribution, form, tool)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO assessments (module_id, type, component, weight, clos_text, plo_pi, contribution, form, tool)
+        VALUES (?, "Đánh giá thường xuyên", ?, ?, ?, ?, ?, ?, ?)
     ');
 
     $defaultAssessmentForms = [
@@ -833,7 +836,18 @@ try {
         $storedComponent = $assessmentComponentStorageMap[$component] ?? $component;
         $closText = implode(', ', $row['clos']);
         $ploPiText = implode(' | ', array_values(array_unique($row['plo_pi'])));
-        $contributionText = implode(', ', array_values(array_unique($row['contribution'])));
+        
+        $allContribs = [];
+        foreach ($row['contribution'] as $cStr) {
+            $parts = array_filter(array_map('trim', explode(',', $cStr)));
+            foreach ($parts as $p) {
+                if (!in_array($p, $allContribs)) {
+                    $allContribs[] = $p;
+                }
+            }
+        }
+        $contributionText = implode(', ', $allContribs);
+        
         $toolText = implode(', ', $row['tools']);
         $weight = round($row['weight'], 2);
 
@@ -851,7 +865,6 @@ try {
         $assessmentId = (int)$pdo->lastInsertId();
         if ($closText !== '') {
             $linkClosToEntity('assessment_clos', 'assessment_id', $assessmentId, $closText);
-            $linkPloCodesToClos($row['plo_codes'], $closText);
         }
 
         $stmtToolRelation = $pdo->prepare('
@@ -1013,6 +1026,7 @@ try {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ');
 
+
     foreach ($combinedRows as $index => $row) {
         $sortOrder = (int)($row['stt'] ?? ($index + 1));
         $content = trim((string)($row['content'] ?? ''));
@@ -1053,7 +1067,71 @@ try {
             $linkClosToEntity('combined_topic_clos', 'combined_topic_id', $combinedId, $closText);
         }
     }
+    // --- LƯU MA TRẬN CLO-PLO-PI DỰA TRÊN ASSESSMENTS_JSON ---
+    if (!empty($_POST['assessments_json'])) {
+        
+        $cloIdMap = [];
+        $stmtCloMap = $pdo->prepare("SELECT id, UPPER(TRIM(code)) as code FROM clos WHERE module_id = ?");
+        $stmtCloMap->execute([$moduleId]);
+        while($row = $stmtCloMap->fetch(PDO::FETCH_ASSOC)) { 
+            $cloIdMap[$row['code']] = $row['id']; 
+        }
 
+        $ploIdByCode = [];
+        $stmtPloMap = $pdo->query("SELECT id, UPPER(TRIM(code)) as code FROM plos");
+        while($row = $stmtPloMap->fetch(PDO::FETCH_ASSOC)) { 
+            $ploIdByCode[$row['code']] = $row['id']; 
+        }
+
+        $piIdByCode = [];
+        $stmtPiMap = $pdo->query("SELECT id, UPPER(TRIM(code)) as code FROM pis");
+        while($row = $stmtPiMap->fetch(PDO::FETCH_ASSOC)) { 
+            $piIdByCode[$row['code']] = $row['id']; 
+        }
+
+        // Xóa liên kết cũ của học phần này
+        $stmtDel = $pdo->prepare("DELETE FROM clo_plos WHERE clo_id IN (SELECT id FROM clos WHERE module_id = ?)");
+        $stmtDel->execute([$moduleId]);
+
+        // Query chèn dữ liệu mới có thêm cột contribution
+        $stmtIns = $pdo->prepare("INSERT INTO clo_plos (clo_id, plo_id, pi_id, contribution) VALUES (?, ?, ?, ?)");
+        
+        $assessmentsData = json_decode($_POST['assessments_json'], true);
+        $insertedPairs = [];
+    
+        if (is_array($assessmentsData)) {
+            foreach ($assessmentsData as $item) {
+                $cloKey = strtoupper(trim($item['clos'] ?? ''));
+                $cloId = $cloIdMap[$cloKey] ?? null;
+
+                $ploKey = strtoupper(trim($item['plo'] ?? ''));
+                $ploId = $ploIdByCode[$ploKey] ?? null;
+
+                if ($cloId && $ploId) {
+                    if (!empty($item['piMap']) && is_array($item['piMap'])) {
+                        foreach ($item['piMap'] as $pObj) {
+                            $piKey = strtoupper(trim($pObj['pi'] ?? ''));
+                            $piId = $piIdByCode[$piKey] ?? null;
+                            
+                            // Ghép mảng I,M,R,A thành chuỗi (Ví dụ: "I, M")
+                            $contribs = $pObj['contribs'] ?? [];
+                            $contribStr = count($contribs) > 0 ? implode(', ', $contribs) : '';
+                            
+                            $checkKey = "{$cloId}_{$ploId}_{$piId}";
+                            
+                            // THAY ĐỔI CHÍNH: Chỉ lưu vào CSDL khi ô này được chọn mức đóng góp (khác rỗng)
+                            if (!isset($insertedPairs[$checkKey]) && $contribStr !== '') {
+                                $stmtIns->execute([$cloId, $ploId, $piId, $contribStr]);
+                                $insertedPairs[$checkKey] = true;
+                            }
+                        }
+                    }
+                
+            }
+        }
+        }
+    }
+//------------------------------------------------------------------------------
     $stmtResource = $pdo->prepare('
         INSERT INTO resources (module_id, resource_type, sort_order, title, editor, publisher, year, identifier, book_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1092,7 +1170,40 @@ try {
 
     $insertResources($teachResources, $resourceTypeStorageMap['Tài liệu giảng dạy'] ?? 'Tài liệu giảng dạy');
     $insertResources($selfResources, $resourceTypeStorageMap['Tài liệu tự học'] ?? 'Tài liệu tự học');
+    $pdo->exec("
+        UPDATE modules m
+        JOIN courses c ON c.id = m.course_id
+        SET m.education_program_id = CASE c.major_id
+            WHEN 1 THEN 1
+            WHEN 2 THEN 2
+            WHEN 3 THEN 3
+            ELSE NULL
+        END
+        WHERE m.education_program_id IS NULL
+    ");
 
+    // --- Tự động gán mặc định cho các bảng Topics ---
+    $topics = ['theory_topics', 'practical_topics', 'combined_topics'];
+    foreach ($topics as $table) {
+        $pdo->exec("
+            UPDATE `{$table}`
+            SET `delivery_mode` = 'Học trên lớp',
+                `teaching_method` = COALESCE(NULLIF(`teaching_method`, ''), `method`)
+            WHERE `delivery_mode` IS NULL
+        ");
+    }
+
+
+    // --- Tự động gán parent_id cho theory_topics ---
+    $pdo->exec("
+        UPDATE `theory_topics` child
+        JOIN `theory_topics` parent
+          ON parent.module_id = child.module_id
+         AND parent.chapter LIKE 'Chương%'
+        SET child.parent_id = parent.id
+        WHERE child.chapter LIKE 'Bài%'
+          AND child.parent_id IS NULL
+    ");
     $pdo->commit();
 
     header('Location: view.php?id=' . $moduleId);
