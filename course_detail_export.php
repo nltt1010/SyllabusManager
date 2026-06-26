@@ -263,19 +263,18 @@ $html = '
     <h1>2. MÔ TẢ HỌC PHẦN</h1>
     <p class="indent">' . htmlspecialchars(s($module['description'])) . '</p>
 
-    <h1>3. MỤC TIÊU VÀ CHUẨN ĐẦU RA HỌC PHẦN</h1>
-    <h2>3.1. Mục tiêu</h2>';
+    <h1>3. MỤC TIÊU VÀ CHUẨN ĐẦU RA HỌC PHẦN</h1>';
     if (!empty($module['objective_general'])) {
-        $html .= '<p><b>Mục tiêu chung:</b> ' . nl2br(htmlspecialchars(s($module['objective_general']))) . '</p>';
+        $html .= '<h2 style="padding-left: 20px;">Mục tiêu chung:</h2><p>' . nl2br(htmlspecialchars(s($module['objective_general']))) . '</p>';
     }
     if (!empty($module['objective_specific'])) {
-        $html .= '<p><b>Mục tiêu cụ thể (PO):</b> ' . nl2br(htmlspecialchars(s($module['objective_specific']))) . '</p>';
+        $html .= '<h2 style="padding-left: 20px;">Mục tiêu cụ thể (PO):</h2><p>' . nl2br(htmlspecialchars(s($module['objective_specific']))) . '</p>';
     }
     if (!empty($module['objective_plo'])) {
-        $html .= '<p><b>Chuẩn đầu ra CTĐT (PLO):</b> ' . nl2br(htmlspecialchars(s($module['objective_plo']))) . '</p>';
+        $html .= '<h2 style="padding-left: 20px;">Chuẩn đầu ra CTĐT (PLO):</h2><p>' . nl2br(htmlspecialchars(s($module['objective_plo']))) . '</p>';
     }
     $html .= '
-    <h2>3.2. Chuẩn đầu ra học phần (Bloom)</h2>
+    <h1>4. Chuẩn đầu ra học phần (Bloom)</h2>
     <table>
         <thead>
             <tr>
@@ -319,15 +318,15 @@ $html = '
         $html .= '</tbody>
     </table>
 
-    <h1>4. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</h1>
-    <h2>4.1. Thang điểm lượng giá</h2>';
+    <h1>5. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</h1>
+    <h2>5.1. Thang điểm lượng giá</h2>';
     $scale = s($module['grading_scale']) ?: 'Học phần được lượng giá theo thang điểm 10.';
     foreach (preg_split('/\r\n|\r|\n/', trim($scale)) as $line) {
         if (trim($line) === '') continue;
         $html .= '<p class="indent">' . htmlspecialchars(trim($line)) . '</p>';
     }
     $html .= '
-    <h2>4.2. Phương pháp kiểm tra lượng giá</h2>
+    <h2>5.2. Phương pháp kiểm tra lượng giá</h2>
     <table>
         <thead>
             <tr>
@@ -355,7 +354,7 @@ $html = '
         $html .= '</tbody>
     </table>
 
-    <h2>4.3. Lượng giá hoạt động tự học</h2>
+    <h2>5.3. Lượng giá hoạt động tự học</h2>
     <table>
         <thead>
             <tr>
@@ -385,8 +384,8 @@ $html = '
         $html .= '</tbody>
     </table>
 
-    <h1>5. NỘI DUNG HỌC PHẦN VÀ PHƯƠNG PHÁP DẠY - HỌC</h1>
-    <h2>5.1. Lý thuyết</h2>
+    <h1>6. NỘI DUNG HỌC PHẦN VÀ PHƯƠNG PHÁP DẠY - HỌC</h1>
+    <h2>6.1. Lý thuyết</h2>
     <table>
         <thead>
             <tr>
@@ -418,7 +417,7 @@ $html = '
         $html .= '</tbody>
     </table>
 
-    <h2>5.2. Thực hành</h2>
+    <h2>6.2. Thực hành</h2>
     <table>
         <thead>
             <tr>
@@ -448,7 +447,7 @@ $html = '
         $html .= '</tbody>
     </table>
 
-    <h2>5.3. Lý thuyết và Thực hành tích hợp (chung)</h2>
+    <h2>6.3. Lý thuyết và Thực hành tích hợp (chung)</h2>
     <table>
         <thead>
             <tr>
@@ -483,12 +482,12 @@ $html = '
         $html .= '</tbody>
     </table>
 
-    <h1>6. TÀI LIỆU DẠY VÀ HỌC</h1>';
+    <h1>7. TÀI LIỆU DẠY VÀ HỌC</h1>';
     $teachRes = array_filter($resources, fn($r) => $r['resource_type'] === 'Tài liệu giảng dạy');
     $selfRes  = array_filter($resources, fn($r) => $r['resource_type'] === 'Tài liệu tự học');
     
     // 6.1 Tài liệu giảng dạy
-    $html .= '<h2>6.1. Tài liệu giảng dạy</h2>
+    $html .= '<h2>7.1. Tài liệu giảng dạy</h2>
     <table>
         <thead>
             <tr>
@@ -519,7 +518,7 @@ $html = '
         $html .= '</tbody>
     </table>
 
-    <h2>6.2. Tài liệu tự học</h2>
+    <h2>7.2. Tài liệu tự học</h2>
     <table>
         <thead>
             <tr>
