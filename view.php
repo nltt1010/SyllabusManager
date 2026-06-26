@@ -363,8 +363,8 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                     <?php foreach($assessments as $a): ?>
                         <tr>
                             <td class="text-center"><?= h($a['clos_codes'] ?: '---') ?></td>
-                            <td class="text-center fw-semibold"><?= h($a['plo_pi']) ?></td>
-                            <td class="text-center fw-bold text-primary"><?= h($a['contribution'] ?? '') ?></td>
+                            <td class="text-center"><?= h($a['plo_pi']) ?></td>
+                            <td class="text-center"><?= h($a['contribution'] ?? '') ?></td>
                             <td><?= h($a['form']) ?></td>
                             <td><?= h($a['tool']) ?></td>
                             <td class="text-center"><?= h($a['weight']) ?>%</td>
