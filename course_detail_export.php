@@ -310,7 +310,7 @@ $html = '
                     <td style="vertical-align: top;">' . $domainHtml . '</td>
                     <td class="text-center" style="vertical-align: top;">' . $bloomHtml . '</td>
                     <td class="text-center" style="vertical-align: top;">' . htmlspecialchars(s($c['code'])) . '</td>
-                    <td style="vertical-align: top;">' . nl2br(htmlspecialchars(s($c['description']))) . '</td>
+                    <td style="vertical-align: top;">' . nl2br(htmlspecialchars(s($c['content']))) . '</td>
                 </tr>';
             }
         } else {

@@ -598,7 +598,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
     </table>
 
 
-    // -----------------------------------------------------------
+
     <div class="section-title">8. PHỤ LỤC</div>
     <div class="sub-section-header">
         <div class="sub-section-title">Ma trận chuẩn đầu ra học phần (CLOs) và chuẩn đầu ra chương trình đào tạo (PLOs/PIs)</div>

@@ -14,6 +14,10 @@ try {
         'theory_topics',
         'practical_topics',
         'combined_topics',
+        'courses',
+        'resources', 
+        'assessment_tool_relation', 
+        'assessment_form_relation'
     ];
 
     $ensureColumn = function (string $table, string $column, string $definition) use ($pdo, $allowedTables) {
@@ -58,6 +62,12 @@ try {
     $ensureColumn('combined_topics', 'hours_online', 'INT NULL DEFAULT 0');
     $ensureColumn('combined_topics', 'pedagogy', 'TEXT NULL');
     $ensureColumn('combined_topics', 'clos_text', 'TEXT NULL');
+
+    // $ensureColumn('courses', 'sort_order', 'INT NULL DEFAULT 0');
+    // $ensureColumn('combined_topics', 'sort_order', 'INT NULL DEFAULT 0');
+    // $ensureColumn('assessment_tool_relation', 'sort_order', 'INT NULL DEFAULT 0');
+    // $ensureColumn('assessment_form_relation', 'sort_order', 'INT NULL DEFAULT 0');
+    // $ensureColumn('resources', 'sort_order', 'INT NULL DEFAULT 0');
 
     // Migrate clo_plos
     try {

@@ -246,7 +246,7 @@ CREATE TABLE `assessments` (
 
 CREATE TABLE `assessment_tools` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `assessment_form` VARCHAR(100) NOT NULL,
+  `assessment_form` VARCHAR(100) NULL DEFAULT NULL,
   `name` VARCHAR(255) NOT NULL,
   `description` TEXT NULL,
   UNIQUE KEY `unique_assessment_tool_name` (`name`)
@@ -264,10 +264,12 @@ CREATE TABLE `assessment_form_relation` (
 
 CREATE TABLE `assessment_tool_relation` (
   `assessment_id` INT NOT NULL,
-  `assessment_tool_id` INT NOT NULL,
-  PRIMARY KEY (`assessment_id`, `assessment_tool_id`),
+  `tool_id` INT NOT NULL,
+  `sort_order` INT NULL DEFAULT 0,
+  `note` VARCHAR(255) NULL,
+  PRIMARY KEY (`assessment_id`, `tool_id`),
   FOREIGN KEY (`assessment_id`) REFERENCES `assessments`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`assessment_tool_id`) REFERENCES `assessment_tools`(`id`) ON DELETE CASCADE
+  FOREIGN KEY (`tool_id`) REFERENCES `assessment_tools`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `assessment_clos` (
@@ -309,6 +311,11 @@ CREATE TABLE `theory_topics` (
   `class_hours` INT DEFAULT 0,
   `online_hours` INT DEFAULT 0,
   `self_study_hours` INT DEFAULT 0,
+  `method` TEXT NULL,
+  `hours_online` INT NULL DEFAULT 0,
+  `pedagogy` TEXT NULL,
+  `textbook_info` TEXT NULL,
+  `clos_text` TEXT NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`parent_id`) REFERENCES `theory_topics`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -332,6 +339,10 @@ CREATE TABLE `practical_topics` (
   `lab_hours` INT DEFAULT 0,
   `online_hours` INT DEFAULT 0,
   `facility_id` INT NULL,
+    `method` TEXT NULL,
+  `hours_online` INT NULL DEFAULT 0,
+  `pedagogy` TEXT NULL,
+  `clos_text` TEXT NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`parent_id`) REFERENCES `practical_topics`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`facility_id`) REFERENCES `facilities`(`id`) ON DELETE SET NULL
@@ -358,6 +369,10 @@ CREATE TABLE `combined_topics` (
   `online_hours` INT DEFAULT 0,
   `self_study_hours` INT DEFAULT 0,
   `facility_id` INT NULL,
+  `method` TEXT NULL,
+  `hours_online` INT NULL DEFAULT 0,
+  `pedagogy` TEXT NULL,
+  `clos_text` TEXT NULL,
   FOREIGN KEY (`module_id`) REFERENCES `modules`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`parent_id`) REFERENCES `combined_topics`(`id`) ON DELETE SET NULL,
   FOREIGN KEY (`facility_id`) REFERENCES `facilities`(`id`) ON DELETE SET NULL
@@ -538,7 +553,7 @@ INSERT INTO `assessments` (`module_id`, `type`, `component`, `form`, `tool`, `we
 (9,'Đánh giá thường xuyên','Chuyên cần','Điểm danh, hỏi đáp','Danh sách lớp',10,'PLO1'),(9,'Đánh giá định kỳ','Kiểm tra giữa kỳ','Bài tập tình huống','Rubric',30,'PLO2'),(9,'Thi cuối kỳ','Thi kết thúc','Trắc nghiệm','Ngân hàng câu hỏi',60,'PLO1, PLO2'),
 (10,'Đánh giá thường xuyên','Chuyên cần','Điểm danh, hỏi đáp','Danh sách lớp',10,'PLO1'),(10,'Đánh giá định kỳ','Kiểm tra giữa kỳ','Bài tập tình huống','Rubric',30,'PLO2'),(10,'Thi cuối kỳ','Thi kết thúc','Trắc nghiệm','Ngân hàng câu hỏi',60,'PLO1, PLO2');
 
-INSERT INTO `assessment_tool_relation` (`assessment_id`, `assessment_tool_id`)
+INSERT INTO `assessment_tool_relation` (`assessment_id`, `tool_id`)
 SELECT `id`, 1 FROM `assessments` WHERE MOD(`id`, 3) = 1
 UNION ALL
 SELECT `id`, 4 FROM `assessments` WHERE MOD(`id`, 3) = 2
