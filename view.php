@@ -40,7 +40,7 @@ $stmtMatrix = $pdo->prepare("
       AND cp.contribution IS NOT NULL 
       AND TRIM(cp.contribution) != ''
 ");
-$stmtMatrix->execute([$id]); // Lúc này $id chắc chắn đã có giá trị
+$stmtMatrix->execute([$id]);
 $matrixData = $stmtMatrix->fetchAll(PDO::FETCH_ASSOC);
 
 foreach ($matrixData as $row) {
@@ -294,8 +294,8 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </div>
     </div>
 
-    <div class="section-title">4. CHUẨN ĐẦU RA HỌC PHẦN (BLOOM)</div>
-    <!-- <div class="sub-section-header"><div class="sub-section-title">Chuẩn đầu ra học phần (Bloom)</div></div> -->
+    <!-- <div class="section-title">3.1 CHUẨN ĐẦU RA HỌC PHẦN (BLOOM)</div> -->
+    <div class="sub-section-header"><div class="sub-section-title">3.1. Chuẩn đầu ra học phần (Bloom)</div></div>
     <table class="table table-bordered align-middle">
         <thead>
             <tr>
@@ -341,29 +341,42 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </tbody>
     </table>
 
-    <div class="section-title">5. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</div>
-    <div class="sub-section-header"><div class="sub-section-title">5.1. Thang điểm lượng giá</div></div>
+    <div class="section-title">4. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</div>
+    <div class="sub-section-header"><div class="sub-section-title">4.1. Thang điểm lượng giá</div></div>
     <div class="p-3 bg-light border rounded mb-3"><?= h($module['grading_scale']) ?></div>
 
     <div class="section">
-        <div class="sub-section-header"><div class="sub-section-title">5.2. Phương pháp kiểm tra lượng giá</div></div>
+        <div class="sub-section-header"><div class="sub-section-title">4.2. Phương pháp kiểm tra lượng giá</div></div>
         <table class="table table-bordered align-middle">
             <thead>
                 <tr>
-                    <th style="width: 12%; text-align: center;">CLOs</th>
-                    <th style="width: 12%; text-align: center;">PLO/PI liên quan</th>
-                    <th style="width: 12%; text-align: center;">Mức độ đóng góp</th>
-                    <th style="width: 28%;">Hình thức đánh giá</th>
-                    <th style="width: 28%;">Công cụ đánh giá</th>
-                    <th style="width: 12%; text-align: center;">Trọng số</th>
+                    <th style="width: 9%; text-align: center;">CLOs</th>
+                    <th style="width: 12%; text-align: center;">PLO</th>
+                    <th style="width: 12%; text-align: center;">PI liên quan</th>
+                    <th style="width: 10%; text-align: center;">Mức độ đóng góp</th>
+                    <th style="width: 26%;">Hình thức đánh giá</th>
+                    <th style="width: 24%;">Công cụ đánh giá</th>
+                    <th style="width: 7%; text-align: center;">Trọng số</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if (!empty($assessments)): ?>
                     <?php foreach($assessments as $a): ?>
+                        <?php
+                            $plo_pi_str = $a['plo_pi'] ?? '';
+                            
+                            // 1. Quét tìm tất cả các cụm từ bắt đầu bằng PLO (hoặc PO) kèm theo số
+                            preg_match_all('/(PLO|PO)\s*[\d\.]+/i', $plo_pi_str, $plo_matches);
+                            $plo_display = !empty($plo_matches[0]) ? implode(', ', array_unique($plo_matches[0])) : '---';
+                            
+                            // 2. Quét tìm tất cả các cụm từ bắt đầu bằng PI kèm theo số
+                            preg_match_all('/PI\s*[\d\.]+/i', $plo_pi_str, $pi_matches);
+                            $pi_display = !empty($pi_matches[0]) ? implode(', ', array_unique($pi_matches[0])) : '---';
+                        ?>
                         <tr>
                             <td class="text-center"><?= h($a['clos_codes'] ?: '---') ?></td>
-                            <td class="text-center"><?= h($a['plo_pi']) ?></td>
+                            <td class="text-center"><?= h($plo_display) ?></td>
+                            <td class="text-center"><?= h($pi_display) ?></td>
                             <td class="text-center"><?= h($a['contribution'] ?? '') ?></td>
                             <td><?= h($a['form']) ?></td>
                             <td><?= h($a['tool']) ?></td>
@@ -372,14 +385,14 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-3">Chưa có phương pháp đánh giá nào.</td>
+                        <td colspan="7" class="text-center text-muted py-3">Chưa có phương pháp đánh giá nào.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
     <div class="section">
-        <div class="sub-section-header"><div class="sub-section-title">5.3. Lượng giá hoạt động tự học</div></div>
+        <div class="sub-section-header"><div class="sub-section-title">4.3. Lượng giá hoạt động tự học</div></div>
         <table class="table table-bordered align-middle">
             <thead>
                 <tr>
@@ -412,8 +425,8 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </table>
     </div>
 
-    <div class="section-title">6. NỘI DUNG HỌC PHẦN VÀ TIẾN ĐỘ GIẢNG DẠY</div>
-    <div class="sub-section-header"><div class="sub-section-title">6.1. Tiến độ bài giảng Lý thuyết</div></div>
+    <div class="section-title">5. NỘI DUNG HỌC PHẦN VÀ TIẾN ĐỘ GIẢNG DẠY</div>
+    <div class="sub-section-header"><div class="sub-section-title">5.1. Lý thuyết</div></div>
     <table class="table table-bordered align-middle">
         <thead>
             <tr>
@@ -428,18 +441,34 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                 <th>Tài liệu học tập liên quan</th>
             </tr>
         </thead>
-        <tbody>
-            <?php if (!empty($theoryTopics)): foreach($theoryTopics as $t): ?>
+            <tbody>
+                <?php if (!empty($theoryTopics)): foreach($theoryTopics as $t): ?>
+                <?php 
+                    $chapterText = trim($t['chapter'] ?? '');
+                    $isChapter = (mb_strpos($chapterText, 'Chương') === 0);
+                    $isBài0 = (mb_strpos($chapterText, 'Bài 0') === 0 || ($t['type'] ?? '') === 'intro');
+                ?>
                 <tr>
-                    <td class="text-center fw-bold"><?= h($t['chapter']) ?></td>
-                    <td><?= h($t['title']) ?></td>
-                    <td><?= h($t['method']) ?></td>
-                    <td class="text-center"><?= h($t['class_hours']) ?></td>
-                    <td class="text-center"><?= h($t['self_study_hours']) ?></td>
-                    <td class="text-center"><?= h($t['hours_online'] ?? 0) ?></td>
-                    <td><?= h($t['pedagogy'] ?? '') ?></td>
-                    <td class="text-center"><?= h($t['clos_codes']) ?></td>
-                    <td><?= h($t['textbook_info']) ?></td>
+                    <?php if ($isChapter || $isBài0): ?>
+                        <td class="text-center <?= $isChapter ? 'fw-bold bg-light' : '' ?>">
+                            <?= h($chapterText) ?>
+                        </td>
+                        
+                        <td colspan="8" class="text-center <?= $isChapter ? 'fw-bold bg-light text-uppercase' : '' ?>">
+                            <?= h($t['title']) ?>
+                        </td>
+                    
+                    <?php else: ?>
+                        <td class="text-center"><?= h($chapterText) ?></td>
+                        <td><?= h($t['title']) ?></td>
+                        <td><?= h($t['method']) ?></td>
+                        <td class="text-center"><?= h($t['class_hours']) ?></td>
+                        <td class="text-center"><?= h($t['self_study_hours']) ?></td>
+                        <td class="text-center"><?= h($t['hours_online'] ?? 0) ?></td>
+                        <td><?= h($t['pedagogy'] ?? '') ?></td>
+                        <td class="text-center"><?= h($t['clos_codes']) ?></td>
+                        <td><?= h($t['textbook_info']) ?></td>
+                    <?php endif; ?>
                 </tr>
             <?php endforeach; else: ?>
                 <tr><td colspan="9" class="text-center text-muted">Chưa thiết lập bài giảng lý thuyết</td></tr>
@@ -447,7 +476,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </tbody>
     </table>
 
-    <div class="sub-section-header"><div class="sub-section-title">6.2. Tiến độ Thực hành</div></div>
+    <div class="sub-section-header"><div class="sub-section-title">5.2. Thực hành</div></div>
     <table class="table table-bordered align-middle">
         <thead>
             <tr>
@@ -456,7 +485,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                 <th style="width: 10%;">Hình thức tổ chức</th>
                 <th style="width: 7%;">Số tiết TH</th>
                 <th style="width: 7%;">Số tiết TT</th>
-                <th style="width: 10%;">Phương pháp DH</th>
+                <th style="width: 10%;">Phương pháp dạy học</th>
                 <th style="width: 10%;">CLOs đạt được</th>
                 <th style="width: 12%;">Cơ sở thực hành</th>
             </tr>
@@ -479,7 +508,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </tbody>
     </table>
 
-    <div class="sub-section-header"><div class="sub-section-title">6.3. Lý thuyết & Thực hành tích hợp (chung)</div></div>
+    <div class="sub-section-header"><div class="sub-section-title">5.3. Lý thuyết & Thực hành tích hợp</div></div>
     <table class="table table-bordered align-middle">
         <thead>
             <tr>
@@ -490,7 +519,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
                 <th style="width: 7%;">Tiết TH</th>
                 <th style="width: 7%;">Tiết TT</th>
                 <th style="width: 7%;">Tự học</th>
-                <th style="width: 10%;">Phương pháp DH</th>
+                <th style="width: 10%;">Phương pháp dạy học</th>
                 <th style="width: 9%;">CLOs đạt được</th>
                 <th style="width: 10%;">Cơ sở thực hành</th>
             </tr>
@@ -515,10 +544,10 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
         </tbody>
     </table>
 
-    <div class="section-title">7. TÀI LIỆU DẠY VÀ HỌC</div>
+    <div class="section-title">6. TÀI LIỆU DẠY VÀ HỌC</div>
 
     <div class="sub-section-header">
-        <div class="sub-section-title">7.1. Tài liệu giảng dạy</div>
+        <div class="sub-section-title">6.1. Tài liệu giảng dạy</div>
     </div>
     <table class="table table-bordered align-middle">
         <thead>
@@ -558,7 +587,7 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
     </table>
 
     <div class="sub-section-header">
-        <div class="sub-section-title">7.2. Tài liệu tự học</div>
+        <div class="sub-section-title">6.2. Tài liệu tự học</div>
     </div>
     <table class="table table-bordered align-middle">
         <thead>
@@ -599,10 +628,10 @@ $module['department_in_charge_text'] = $stmt->fetchColumn() ?: ($module['departm
 
 
 
-    <div class="section-title">8. PHỤ LỤC</div>
-    <div class="sub-section-header">
+    <div class="section-title">7. PHỤ LỤC</div>
+    <!-- <div class="sub-section-header">
         <div class="sub-section-title">Ma trận chuẩn đầu ra học phần (CLOs) và chuẩn đầu ra chương trình đào tạo (PLOs/PIs)</div>
-    </div>
+    </div> -->
     
     <?php
 

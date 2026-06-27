@@ -293,24 +293,25 @@ if($course_id){
         <div class="section-title">3. MỤC TIÊU VÀ CHUẨN ĐẦU RA HỌC PHẦN</div>
 
         <div class="row g-3 mb-4">
-            <div class="col-md-4">
+            <div class="col-12 objective-group">
                 <label class="form-label fw-bold">Mục tiêu chung</label>
                 <textarea name="objective_general" class="form-control" rows="5" placeholder="Nhập mục tiêu chung của học phần..."></textarea>
             </div>
-            <div class="col-md-4">
+            
+            <div class="col-12 objective-group">
                 <label class="form-label fw-bold">Mục tiêu cụ thể (PO)</label>
                 <textarea name="objective_specific" class="form-control" rows="5" placeholder="Nhập mục tiêu cụ thể (PO)..."></textarea>
             </div>
-            <div class="col-md-4">
+            
+            <div class="col-12 objective-group">
                 <label class="form-label fw-bold">Chuẩn đầu ra chương trình đào tạo (PLO)</label>
                 <textarea name="objective_plo" class="form-control" rows="5" placeholder="Nhập chuẩn đầu ra chương trình đào tạo (PLO)..."></textarea>
             </div>
         </div>
 
 
-        <div class="section-title">4. CHUẨN ĐẦU RA HỌC PHẦN (BLOOM)</div>
         <div class="sub-section-header">
-            <div class="sub-section-title">Chuẩn đầu ra học phần (Bloom)</div>
+            <div class="sub-section-title">3.1 Chuẩn đầu ra học phần (Bloom)</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addCloRow();">+ Thêm dòng CLO</button>
         </div>
         <table class="table table-bordered align-middle" id="cloTable">
@@ -328,17 +329,17 @@ if($course_id){
         </table>
         <input type="hidden" id="clos_json" name="clos_json">
 
-        <div class="section-title">5. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</div>
+        <div class="section-title">4. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</div>
 
         <div class="sub-section-header">
-            <div class="sub-section-title">5.1. Thang điểm lượng giá</div>
+            <div class="sub-section-title">4.1. Thang điểm lượng giá</div>
         </div>
         <div class="mb-3">
             <textarea name="grading_scale" class="form-control" rows="2" placeholder="Nhập thông tin quy định thang điểm lý thuyết / thực hành (Dạng chữ hoặc số)..."></textarea>
         </div>
 
         <div class="sub-section-header">
-            <div class="sub-section-title">5.2. Phương pháp kiểm tra lượng giá</div>
+            <div class="sub-section-title">4.2. Phương pháp kiểm tra lượng giá</div>
             <!-- <button type="button" class="btn btn-sm btn-primary" onclick="addAssessmentRow();">+ Thêm thành phần lượng giá</button> -->
         </div>
         <table class="table table-bordered align-middle" id="assessmentTable">
@@ -368,7 +369,7 @@ if($course_id){
         </div>
 
         <div class="sub-section-header">
-            <div class="sub-section-title">5.3. Phương pháp lượng giá hoạt động tự học</div>
+            <div class="sub-section-title">4.3. Phương pháp lượng giá hoạt động tự học</div>
             <!-- <button type="button" class="btn btn-sm btn-primary" onclick="addSelfStudyRow();">+ Thêm hoạt động tự học</button> -->
         </div>
         <table class="table table-bordered align-middle" id="selfStudyTable">
@@ -397,10 +398,10 @@ if($course_id){
         <input type="hidden" id="self_study_json" name="self_study_json">
 
 
-        <div class="section-title">6. NỘI DUNG HỌC PHẦN VÀ PHƯƠNG PHÁP DẠY-HỌC</div>
+        <div class="section-title">5. NỘI DUNG HỌC PHẦN VÀ PHƯƠNG PHÁP DẠY-HỌC</div>
 
         <div class="sub-section-header">
-            <div class="sub-section-title">6.1. Lý thuyết</div>
+            <div class="sub-section-title">5.1. Lý thuyết</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addTheoryRow();">+ Thêm bài giảng lý thuyết</button>
         </div>
         <table class="table table-bordered align-middle" id="theoryTopicTable">
@@ -422,7 +423,7 @@ if($course_id){
         <input type="hidden" id="theory_json" name="theory_json">
 
         <div class="sub-section-header">
-            <div class="sub-section-title">6.2. Thực hành</div>
+            <div class="sub-section-title">5.2. Thực hành</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addPracticalRow();">+ Thêm nội dung thực hành</button>
         </div>
         <table class="table table-bordered align-middle" id="practicalTopicTable">
@@ -445,7 +446,7 @@ if($course_id){
         <input type="hidden" id="practical_json" name="practical_json">
 
         <div class="sub-section-header">
-            <div class="sub-section-title">6.3. Lý thuyết và thực hành (chung)</div>
+            <div class="sub-section-title">5.3. Lý thuyết và thực hành (chung)</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addCombinedRow();">+ Thêm chủ đề tích hợp chung</button>
         </div>
         <table class="table table-bordered align-middle" id="combinedTopicTable">
@@ -470,10 +471,10 @@ if($course_id){
         <input type="hidden" id="combined_json" name="combined_json">
 
 
-        <div class="section-title">7. TÀI LIỆU DẠY HỌC</div>
+        <div class="section-title">6. TÀI LIỆU DẠY HỌC</div>
 
         <div class="sub-section-header">
-            <div class="sub-section-title">7.1. Tài liệu giảng dạy</div>
+            <div class="sub-section-title">6.1. Tài liệu giảng dạy</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addResourceRow('resourceTeachTable');">+ Thêm tài liệu giảng dạy</button>
         </div>
         <table class="table table-bordered align-middle" id="resourceTeachTable">
@@ -494,7 +495,7 @@ if($course_id){
         <input type="hidden" id="res_teach_json" name="res_teach_json">
 
         <div class="sub-section-header">
-            <div class="sub-section-title">7.2. Tài liệu tự học</div>
+            <div class="sub-section-title">6.2. Tài liệu tự học</div>
             <button type="button" class="btn btn-sm btn-primary" onclick="addResourceRow('resourceSelfTable');">+ Thêm tài liệu tự học</button>
         </div>
         <table class="table table-bordered align-middle" id="resourceSelfTable">
@@ -1130,12 +1131,37 @@ function onTheoryTypeChange(sel) {
 
 function applyTheoryRowStyle(tr, type) {
     tr.classList.remove('is-chapter', 'is-lesson');
+    
+    // Tìm thẻ <td> chứa ô nhập tên bài/chương (t-title)
+    const titleInput = tr.querySelector('.t-title');
+    if (!titleInput) return;
+    const titleTd = titleInput.closest('td');
+    
+    // Tìm các thẻ <td> phụ (đã được bạn gán class 't-extra')
+    const extraTds = tr.querySelectorAll('.t-extra');
+
     if (type === 'Chương') {
         tr.classList.add('is-chapter');
-        tr.querySelectorAll('.t-extra').forEach(td => td.style.opacity = '0.35');
+        
+        titleTd.setAttribute('colspan', '7');
+        
+        titleInput.classList.add('fw-bold', 'text-uppercase');
+        
+        extraTds.forEach(td => {
+            td.style.display = 'none';
+        });
+        
     } else {
         tr.classList.add('is-lesson');
-        tr.querySelectorAll('.t-extra').forEach(td => td.style.opacity = '1');
+        
+        titleTd.removeAttribute('colspan');
+        
+        titleInput.classList.remove('fw-bold', 'text-uppercase');
+        
+        extraTds.forEach(td => {
+            td.style.display = ''; 
+            td.style.opacity = '1';
+        });
     }
 }
 
@@ -1144,19 +1170,34 @@ function reindexTheoryChaptersAndLessons() {
     let lessonCount  = 0;
 
     document.querySelectorAll('#theoryTopicTable tbody tr').forEach(tr => {
+        // Khóa an toàn bổ sung: Nhận diện class is-intro để ép cứng nhãn là "Bài 0"
+        if (tr.classList.contains('is-intro')) {
+            const labelInput = tr.querySelector('.t-chapter-label');
+            if (labelInput) labelInput.value = "Bài 0";
+            return; // Bỏ qua không đếm
+        }
+
         const typeSelect = tr.querySelector('.t-type');
-        if (!typeSelect) return; // dòng giới thiệu (Bài 0) không có select
+        // Như bạn đã viết: Dòng Bài 0 không có .t-type nên sẽ tự động bị return ở đây
+        if (!typeSelect) return; 
 
         const type = typeSelect.value;
-        if (type === 'Chương') {
+        const labelInput = tr.querySelector('.t-chapter-label');
+        if (!labelInput) return;
+
+        // Bắt theo value của select (có thể là 'Chương' hoặc 'chapter' tùy cách bạn code HTML)
+        if (type === 'Chương' || type === 'chapter') {
             chapterCount++;
-            lessonCount = 0; // reset bài khi sang chương mới
-            tr.querySelector('.t-chapter-label').value = `Chương ${chapterCount}`;
+            lessonCount = 0; // ĐÚNG: reset bài khi sang chương mới
+            labelInput.value = `Chương ${chapterCount}`;
         } else {
             lessonCount++;
-            tr.querySelector('.t-chapter-label').value = `Bài ${lessonCount}`;
+            labelInput.value = `Bài ${lessonCount}`;
         }
     });
+
+    // Cập nhật lại tổng thời lượng (nếu bạn có hàm này)
+    if (typeof calculateTheoryHours === 'function') calculateTheoryHours();
 }
 
 // -------------------------------------------------------------
@@ -1451,30 +1492,33 @@ function gatherJsonData() {
     let theoryRows = Array.from(document.querySelectorAll('#theoryTopicTable tbody tr'));
 
     theoryRows.forEach(tr => {
-        if (tr.classList.contains('is-intro')) {
-            theory.push({
-                chapter: 'Bài 0',
-                title: 'Giới thiệu học phần',
-                type: 'intro',
-                method: '',
-                hours_class: null,
-                hours_self: null,
-                hours_online: null,
-                pedagogy: '',
-                clos: '',
-                book: ''
-            });
-            return;
-        }
+        // if (tr.classList.contains('is-intro')) {
+        //     theory.push({
+        //         chapter: 'Bài 0',
+        //         title: 'Giới thiệu học phần',
+        //         type: 'intro',
+        //         method: '',
+        //         hours_class: null,
+        //         hours_self: null,
+        //         hours_online: null,
+        //         pedagogy: '',
+        //         clos: '',
+        //         book: ''
+        //     });
+        //     return;
+        // }
 
         const titleVal = tr.querySelector('.t-title')?.value.trim() || '';
         if (titleVal === '') return;
 
         const typeSelect = tr.querySelector('.t-type');
-        const type = typeSelect ? typeSelect.value : null;
+        let chapterVal = tr.querySelector('.t-chapter-label')?.value || '';
+        if ((type === 'lesson' || type === 'intro') && chapterVal !== '' && !chapterVal.toLowerCase().includes('bài')) {
+            chapterVal = 'Bài ' + chapterVal;
+        }
 
         theory.push({
-            chapter: tr.querySelector('.t-chapter-label')?.value || '',
+            chapter: chapterVal,
             title: titleVal,
             type: type || 'intro',
             method: tr.querySelector('.t-method')?.value || '',
@@ -1884,7 +1928,7 @@ $(document).ready(function() {
         
         columns.forEach((col, colIdx) => {
             let orderedTotal = ['I', 'R', 'M', 'A'].filter(c => columnTotalContribs[colIdx].has(c));
-            let totalText = orderedTotal.join(', ');
+            let totalText = orderedTotal.join(', ')
             tableHtml += `<td class="">${escapeHtml(totalText)}</td>`;
         });
         tableHtml += '</tr>';
@@ -1901,36 +1945,54 @@ $(document).ready(function() {
     $('#cloTable').on('input', '.c-code', renderCloPloMatrix);
     $('#assessmentTable').on('change', 'select', renderCloPloMatrix);
 
-    addCloRow();
-    // addAssessmentRow();
-    // addSelfStudyRow();
+    
 
-    // Dòng mặc định: Bài 0 - Giới thiệu học phần
+    // Tạo dòng mặc định: Bài 0 - Giới thiệu 
     (function addIntroRow() {
         const tbody = document.querySelector('#theoryTopicTable tbody');
+        if (!tbody) return;
+        
+        // Tránh việc tự động add trùng nhiều dòng Bài 0 khi load lại dữ liệu
+        if (tbody.querySelector('.is-intro')) return;
+
         const tr = document.createElement('tr');
-        tr.classList.add('is-intro');
+        tr.classList.add('is-intro'); // Giữ class nhận diện đặc biệt cho Bài 0
+        
         tr.innerHTML = `
-            <td class="text-center fw-bold text-secondary" style="font-size:13px;">
-                Bài 0<br><small>(Giới thiệu)</small>
-            </td>
-            <!-- - Dieu chinh colspan sau khi bo cot Ten sach/Giao trinh. -->
-            <td colspan="7" class="text-muted fst-italic ps-3">
-                Giới thiệu học phần &nbsp;–&nbsp; 0 tiết
+            <td class="text-center align-middle fw-bold bg-light text-secondary" style="width: 90px; height: 38px;">
+                Bài 0
                 <input type="hidden" name="theory_chapter[]" value="Bài 0">
-                <input type="hidden" name="theory_title[]" value="Giới thiệu học phần">
+            </td>
+            
+            <td class="align-middle">
+                <input type="text" name="theory_title[]" class="form-control form-control-sm t-title fw-bold" value="Giới thiệu" placeholder="Nhập tên bài giới thiệu...">
+            </td>
+            
+            
+            <td colspan="6" class="text-center align-middle text-muted bg-light" style="font-style: italic; font-size: 12px; letter-spacing: 0.5px;">
+                Nội dung mở đầu học phần
+                <input type="hidden" name="theory_method[]" value="">
                 <input type="hidden" name="theory_class_hours[]" value="0">
                 <input type="hidden" name="theory_self_hours[]" value="0">
                 <input type="hidden" name="theory_online_hours[]" value="0">
                 <input type="hidden" name="theory_pedagogy[]" value="">
                 <input type="hidden" name="theory_clos[]" value="">
-                <input type="hidden" name="theory_method[]" value="">
             </td>
-            <td class="text-center text-muted" style="font-size:12px;">Mặc định</td>
+            
+            <td class="text-center text-muted align-middle fw-bold" style="font-size: 12px; width: 90px;">
+                Mặc định
+            </td>
         `;
-        tbody.appendChild(tr);
+        
+        // Luôn ưu tiên đưa Bài 0 lên vị trí trên cùng của bảng lý thuyết
+        if (tbody.firstChild) {
+            tbody.insertBefore(tr, tbody.firstChild);
+        } else {
+            tbody.appendChild(tr);
+        }
     })();
 
+    addCloRow();              
     addTheoryRow(); 
     addPracticalRow();
     addCombinedRow();

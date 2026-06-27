@@ -145,28 +145,28 @@ $html = '
 <head>
     <meta charset="utf-8">
     <style>
-        body { font-family: "timesnewroman", Times, serif; font-size: 12pt; line-height: 1.4; color: #000; }
+        body { font-family: "timesnewroman", Times, serif; font-size: 12pt; line-height: 1.4; color: #000; font-size: 12pt;}
         
-        /* Định dạng khung Header dùng bảng 3 cột để giữ cân bằng */
+        
         .header-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 25px;
         }
-        /* Ép buộc tất cả các ô trong bảng header KHÔNG ĐƯỢC CÓ VIỀN */
+       
         .header-table td {
             border: none !important;
             padding: 0 !important;
-            vertical-align: middle; /* Ép logo và chữ nằm trên cùng 1 dòng ngang */
+            vertical-align: middle;
         }
         .cell-logo {
-            width: 70px; /* Cột bên trái chứa logo */
+            width: 70px; 
         }
         .cell-text {
-            text-align: center; /* Cột giữa chứa văn bản căn giữa toàn trang */
+            text-align: center; 
         }
         .cell-balance {
-            width: 70px; /* Cột ẩn bên phải để bù trừ không gian, giúp chữ căn giữa chuẩn 100% trang */
+            width: 70px; 
         }
         
         .school-title { 
@@ -187,18 +187,22 @@ $html = '
             border-bottom: 1px solid #000;
             margin: 6px auto 0 auto;
         }
+            
+        .keep-together {
+            page-break-inside: avoid;
+        }
         
-        /* Giữ nguyên các class phía dưới của bạn: .main-title, h1, h2, table, td, th... */
         .main-title { text-align: center; font-size: 14pt; font-weight: bold; margin: 25px 0; line-height: 1.3; }
-        h1 { font-size: 12pt; font-weight: bold; margin-top: 25px; margin-bottom: 10px; text-transform: uppercase; }
-        h2 { font-size: 12pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; }
-        p { margin: 0 0 8px 0; text-align: justify; }
+        h1 { font-size: 12pt; font-weight: bold; margin-top: 25px; margin-bottom: 10px; text-transform: uppercase; page-break-inside: avoid;}
+        h2 { font-size: 11pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; text-transform:none; page-break-inside: avoid;}
+        p { margin: 0 0 8px 0; text-align: justify; font-size: 12pt;}
         .indent { text-indent: 35px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; page-break-inside: avoid;}
+        tr {page-break-inside: avoid;}
         th { font-size: 11pt; font-weight: bold; border: 1px solid #000000; padding: 6px 4px; text-align: center; background-color: #f2f2f2; }
         td { font-size: 11pt; border: 1px solid #000000; padding: 6px 5px; vertical-align: top; }
         .text-center { text-align: center; }
-        table.info-table td { border: none; padding: 4px 0; font-size: 12pt; }
+        table.info-table td { border: none; padding: 4px 0; }
     </style>
 </head>
 <body>
@@ -274,7 +278,8 @@ $html = '
         $html .= '<h2 style="padding-left: 20px;">Chuẩn đầu ra CTĐT (PLO):</h2><p>' . nl2br(htmlspecialchars(s($module['objective_plo']))) . '</p>';
     }
     $html .= '
-    <h1>4. Chuẩn đầu ra học phần (Bloom)</h2>
+    <div class="keep-together">
+    <h2>3.1. Chuẩn đầu ra học phần (Bloom)</h2>
     <table>
         <thead>
             <tr>
@@ -316,45 +321,65 @@ $html = '
             $html .= '<tr><td colspan="4" class="text-center">Chưa cấu hình dữ liệu CLO</td></tr>';
         }
         $html .= '</tbody>
-    </table>
-
-    <h1>5. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</h1>
-    <h2>5.1. Thang điểm lượng giá</h2>';
+    </table></div>
+    
+    <h1>4. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</h1>
+    <h2>4.1. Thang điểm lượng giá</h2>';
     $scale = s($module['grading_scale']) ?: 'Học phần được lượng giá theo thang điểm 10.';
     foreach (preg_split('/\r\n|\r|\n/', trim($scale)) as $line) {
         if (trim($line) === '') continue;
-        $html .= '<p class="indent">' . htmlspecialchars(trim($line)) . '</p>';
+        
+        // Thêm thuộc tính style để ép chữ mảnh (normal) và cỡ chữ chuẩn (12pt)
+        $html .= '<p class="indent" style="font-weight: normal; font-size: 12pt; line-height: 1.4; margin-bottom: 8px; text-transform: none;">' 
+                    . htmlspecialchars(trim($line)) . 
+                 '</p>';
     }
-    $html .= '
-    <h2>5.2. Phương pháp kiểm tra lượng giá</h2>
+    $html .= '<div class="keep-together">
+    <h2>4.2. Phương pháp kiểm tra lượng giá</h2>
     <table>
         <thead>
             <tr>
-                <th width="18%">CLOs</th>
-                <th width="15%">PLO/PI liên quan</th>
-                <th width="27%">Hình thức đánh giá</th>
-                <th width="28%">Công cụ đánh giá</th>
-                <th width="12%">Trọng số</th>
+                <th style="width: 12%; text-align: center;">CLOs</th>
+                <th style="width: 10%; text-align: center;">PLO</th>
+                <th style="width: 12%; text-align: center;">PI liên quan</th>
+                <th style="width: 10%; text-align: center;">Mức độ đóng góp</th>
+                <th style="width: 18%;">Hình thức đánh giá</th>
+                <th style="width: 29%;">Công cụ đánh giá</th>
+                <th style="width: 9%; text-align: center;">Trọng số</th>
             </tr>
         </thead>
         <tbody>';
         if (!empty($assessments)) {
             foreach ($assessments as $a) {
+                // Lấy chuỗi dữ liệu chứa cả PLO và PI
+                $plo_pi_str = $a['plo_pi'] ?? '';
+                
+                // Bóc tách PLO (hoặc PO)
+                preg_match_all('/(PLO|PO)\s*[\d\.]+/i', $plo_pi_str, $plo_matches);
+                $plo_display = !empty($plo_matches[0]) ? implode(', ', array_unique($plo_matches[0])) : '---';
+                
+                // Bóc tách PI
+                preg_match_all('/PI\s*[\d\.]+/i', $plo_pi_str, $pi_matches);
+                $pi_display = !empty($pi_matches[0]) ? implode(', ', array_unique($pi_matches[0])) : '---';
+
                 $html .= '<tr>
                     <td class="text-center">' . htmlspecialchars(s($a['clos_codes'] ?: '---')) . '</td>
-                    <td class="text-center">' . htmlspecialchars(s($a['plo_pi'])) . '</td>
+                    <td class="text-center">' . htmlspecialchars(s($plo_display)) . '</td>
+                    <td class="text-center">' . htmlspecialchars(s($pi_display)) . '</td>
+                    <td class="text-center">' . htmlspecialchars(s($a['contribution'] ?? '')) . '</td>
                     <td>' . htmlspecialchars(s($a['form'])) . '</td>
                     <td>' . htmlspecialchars(s($a['tool'])) . '</td>
                     <td class="text-center">' . htmlspecialchars(s($a['weight'])) . '%</td>
                 </tr>';
             }
         } else {
-            $html .= '<tr><td colspan="5" class="text-center">Chưa có phương pháp đánh giá nào.</td></tr>';
+            // Cập nhật colspan thành 7 để khớp với số lượng cột mới
+            $html .= '<tr><td colspan="7" class="text-center">Chưa có phương pháp đánh giá nào.</td></tr>';
         }
         $html .= '</tbody>
-    </table>
-
-    <h2>5.3. Lượng giá hoạt động tự học</h2>
+    </table></div>
+    <div class="keep-together">
+    <h2>4.3. Lượng giá hoạt động tự học</h2>
     <table>
         <thead>
             <tr>
@@ -382,10 +407,10 @@ $html = '
             $html .= '<tr><td colspan="6" class="text-center">Chưa thiết lập nội dung lượng giá hoạt động tự học.</td></tr>';
         }
         $html .= '</tbody>
-    </table>
-
-    <h1>6. NỘI DUNG HỌC PHẦN VÀ PHƯƠNG PHÁP DẠY - HỌC</h1>
-    <h2>6.1. Lý thuyết</h2>
+    </table></div>
+    <div class="keep-together">
+    <h1>5. NỘI DUNG HỌC PHẦN VÀ PHƯƠNG PHÁP DẠY - HỌC</h1>
+    <h2>5.1. Lý thuyết</h2>
     <table>
         <thead>
             <tr>
@@ -399,55 +424,84 @@ $html = '
             </tr>
         </thead>
         <tbody>';
-        if (!empty($theoryTopics)) {
+       if (!empty($theoryTopics)) {
             foreach ($theoryTopics as $t) {
-                $html .= '<tr>
-                    <td class="text-center">' . htmlspecialchars(s($t['chapter'])) . '</td>
-                    <td>' . htmlspecialchars(s($t['title'])) . '</td>
-                    <td>' . htmlspecialchars(s($t['method'])) . '</td>
-                    <td class="text-center">' . htmlspecialchars(s($t['class_hours'])) . '</td>
-                    <td class="text-center">' . htmlspecialchars(s($t['self_study_hours'])) . '</td>
-                    <td class="text-center">' . htmlspecialchars(s($t['clos_codes'])) . '</td>
-                    <td>' . htmlspecialchars(s($t['textbook_info'])) . '</td>
-                </tr>';
+                $chapterText = trim($t['chapter'] ?? '');
+                $titleText   = trim($t['title'] ?? '');
+                
+                $isChapter = (mb_strpos($chapterText, 'Chương') === 0);
+                $isBài0 = (mb_strpos($chapterText, 'Bài 0') === 0 || ($t['type'] ?? '') === 'intro');
+
+                $html .= '<tr>';
+                
+                if ($isChapter || $isBài0) {
+                    // Cả Chương và Bài 0 đều được căn giữa bằng thuộc tính CSS chuẩn: text-align: center;
+                    $styleCell = 'text-align: center; vertical-align: middle;';
+                    
+                    if ($isChapter) {
+                        // Nếu là Chương: Thêm in đậm, nền xám và chữ IN HOA
+                        $styleCell .= ' font-weight: bold; background-color: #f2f2f2; text-transform: uppercase;';
+                    } else {
+                        // Nếu là Bài 0: Chữ thường (không đậm), nền trắng (hoặc không nền) nhưng vẫn giữ căn giữa
+                        $styleCell .= ' font-weight: normal; background-color: #ffffff; text-transform: none;';
+                    }
+
+                    // Cột 1: Mã chương / Bài 0 (Đã đổi style thành thuộc tính CSS chuẩn)
+                    $html .= '<td style="' . $styleCell . '">' . htmlspecialchars(s($chapterText)) . '</td>';
+                    
+                    // Cột 2: Tên chương / Tên bài (Gộp 6 cột - Nhận chung style căn giữa)
+                    $html .= '<td colspan="6" style="' . $styleCell . '">' . htmlspecialchars(s($titleText)) . '</td>';
+                
+                } else {
+                    // Hàng bài học bình thường (không đậm, không nền xám)
+                    $html .= '<td class="text-center">' . htmlspecialchars(s($chapterText)) . '</td>';
+                    $html .= '<td>' . htmlspecialchars(s($titleText)) . '</td>';
+                    $html .= '<td>' . htmlspecialchars(s($t['method'])) . '</td>';
+                    $html .= '<td class="text-center">' . htmlspecialchars(s($t['class_hours'])) . '</td>';
+                    $html .= '<td class="text-center">' . htmlspecialchars(s($t['self_study_hours'])) . '</td>';
+                    $html .= '<td class="text-center">' . htmlspecialchars(s($t['clos_codes'])) . '</td>';
+                    $html .= '<td>' . htmlspecialchars(s($t['textbook_info'])) . '</td>';
+                }
+                
+                $html .= '</tr>';
             }
         } else {
             $html .= '<tr><td colspan="7" class="text-center">Chưa thiết lập bài giảng lý thuyết</td></tr>';
         }
         $html .= '</tbody>
-    </table>
-
-    <h2>6.2. Thực hành</h2>
-    <table>
+    </table></div>
+    <div class="keep-together">
+    <h2>5.2. Thực hành</h2>
+    <table style="width: 100%; border-collapse: collapse;" shrinktofit="0">
         <thead>
             <tr>
-                <th width="10%">Chủ đề</th>
-                <th width="35%">Nội dung chi tiết / Kỹ năng</th>
-                <th width="15%">Hình thức tổ chức</th>
-                <th width="9%">Số tiết TH</th>
-                <th width="13%">CLOs đạt</th>
-                <th width="20%">Cơ sở TH</th>
+                <th width="22%">Chủ đề</th>
+                <th width="32%">Nội dung chi tiết / Kỹ năng</th>
+                <th width="12%">Hình thức tổ chức</th>
+                <th width="7%">Số tiết TH</th>
+                <th width="10%">CLOs đạt</th>
+                <th width="16%">Cơ sở TH</th>
             </tr>
         </thead>
         <tbody>';
         if (!empty($practicalTopics)) {
             foreach ($practicalTopics as $p) {
                 $html .= '<tr>
-                    <td class="text-center">' . htmlspecialchars(s($p['topic'])) . '</td>
-                    <td>' . htmlspecialchars(s($p['content'])) . '</td>
-                    <td>' . htmlspecialchars(s($p['method'])) . '</td>
-                    <td class="text-center">' . htmlspecialchars(s($p['lab_hours'])) . '</td>
-                    <td class="text-center">' . htmlspecialchars(s($p['clos_codes'])) . '</td>
-                    <td>' . htmlspecialchars(s($p['facility_name'] ?? 'Chưa bố trí')) . '</td>
+                    <td style="vertical-align: top; text-align: left; ">' . htmlspecialchars(s($p['topic'])) . '</td>
+                    <td style="vertical-align: top; text-align: left;">' . htmlspecialchars(s($p['content'])) . '</td>
+                    <td style="vertical-align: top; text-align: center;">' . htmlspecialchars(s($p['method'])) . '</td>
+                    <td style="vertical-align: top; text-align: center;">' . htmlspecialchars(s($p['lab_hours'])) . '</td>
+                    <td style="vertical-align: top; text-align: center;">' . htmlspecialchars(s($p['clos_codes'])) . '</td>
+                    <td style="vertical-align: top; text-align: left;">' . htmlspecialchars(s($p['facility_name'] ?? 'Chưa bố trí')) . '</td>
                 </tr>';
             }
         } else {
             $html .= '<tr><td colspan="6" class="text-center">Chưa thiết lập nội dung thực hành</td></tr>';
         }
         $html .= '</tbody>
-    </table>
-
-    <h2>6.3. Lý thuyết và Thực hành tích hợp (chung)</h2>
+    </table></div>
+    <div class="keep-together">
+    <h2>5.3. Lý thuyết và Thực hành tích hợp (chung)</h2>
     <table>
         <thead>
             <tr>
@@ -480,14 +534,14 @@ $html = '
             $html .= '<tr><td colspan="8" class="text-center">Chưa cấu hình nội dung tích hợp chung</td></tr>';
         }
         $html .= '</tbody>
-    </table>
+    </table></div>
 
-    <h1>7. TÀI LIỆU DẠY VÀ HỌC</h1>';
+    <h1>6. TÀI LIỆU DẠY VÀ HỌC</h1>';
     $teachRes = array_filter($resources, fn($r) => $r['resource_type'] === 'Tài liệu giảng dạy');
     $selfRes  = array_filter($resources, fn($r) => $r['resource_type'] === 'Tài liệu tự học');
     
-    // 6.1 Tài liệu giảng dạy
-    $html .= '<h2>7.1. Tài liệu giảng dạy</h2>
+
+    $html .= '<div class="keep-together"><h2>6.1. Tài liệu giảng dạy</h2>
     <table>
         <thead>
             <tr>
@@ -516,9 +570,9 @@ $html = '
             $html .= '<tr><td colspan="6" class="text-center">Chưa thiết lập danh mục tài liệu giảng dạy</td></tr>';
         }
         $html .= '</tbody>
-    </table>
-
-    <h2>7.2. Tài liệu tự học</h2>
+    </table></div>
+    <div class="keep-together">
+    <h2>6.2. Tài liệu tự học</h2>
     <table>
         <thead>
             <tr>
@@ -547,7 +601,7 @@ $html = '
             $html .= '<tr><td colspan="6" class="text-center">Chưa thiết lập danh mục tài liệu tự học</td></tr>';
         }
         $html .= '</tbody>
-    </table>';
+    </table></div>';
 
     // =====================================================================
     // 8. PHỤ LỤC: MA TRẬN CLO - PLO
@@ -639,9 +693,8 @@ $html = '
     foreach ($mappedPis as &$pArr) { natsort($pArr); }
 
     $html .= '
-    <h1>8. PHỤ LỤC</h1>
-    <h2>Ma trận chuẩn đầu ra học phần (CLOs) và chuẩn đầu ra chương trình đào tạo (PLOs/PIs)</h2>';
-
+    <div class="keep-together"><h1>7. PHỤ LỤC</h1>';
+    
     if (empty($activeClos) || empty($mappedPlos)) {
         $html .= '<p class="text-center fst-italic">Chưa có thông tin ánh xạ CLO - PLO/PI.</p>';
     } else {
@@ -737,7 +790,7 @@ $html = '
         
         $html .= '</tr>
             </tbody>
-        </table>';
+        </table></div>';
     }
 
     $html .= '
@@ -758,9 +811,10 @@ $mpdf = new \Mpdf\Mpdf([
     'margin_bottom' => 25   ,
     'margin_left'   => 30,
     'margin_right'  => 20,
-    'default_font'  => 'times' 
+    'default_font'  => 'times' ,
+    'default_font_size' => 12
 ]);
-
+$mpdf->shrink_tables_to_fit = 0;
 $mpdf->SetTitle('Đề cương học phần ' . s($module['name']));
 $mpdf->WriteHTML($html);
 
