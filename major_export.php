@@ -6,6 +6,8 @@ mb_http_output('UTF-8');
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/vendor/autoload.php';
 
+$pdo->exec('SET SESSION group_concat_max_len = 100000;');
+
 // Nâng hạn mức tài nguyên tối đa để gộp lượng dữ liệu lớn toàn ngành
 @ini_set('memory_limit', '1024M');
 @set_time_limit(300);
@@ -23,6 +25,375 @@ function s(?string $value): string {
 
 function upper(string $value): string {
     return mb_strtoupper($value, 'UTF-8');
+}
+
+function renderModuleObjectivesHtml(array $module): string
+{
+    $sections = [
+        'M&#7909;c ti&#234;u chung:' => s($module['objective_general'] ?? ''),
+        'M&#7909;c ti&#234;u c&#7909; th&#7875; (PO):' => s($module['objective_specific'] ?? ''),
+        'Chu&#7849;n &#273;&#7847;u ra CT&#272;T (PLO):' => s($module['objective_plo'] ?? ''),
+    ];
+
+    $html = '';
+    foreach ($sections as $label => $content) {
+        if ($content === '') {
+            continue;
+        }
+
+        $html .= '<h2 style="padding-left: 20px;">' . $label . '</h2>';
+        $html .= '<p>' . nl2br(htmlspecialchars($content)) . '</p>';
+    }
+
+    if ($html !== '') {
+        return $html;
+    }
+
+    $legacyObjectives = s($module['objectives'] ?? '');
+    if ($legacyObjectives === '') {
+        return '';
+    }
+
+    $html .= '<h2 style="padding-left: 20px;">M&#7909;c ti&#234;u h&#7885;c ph&#7847;n:</h2>';
+    foreach (preg_split('/\r\n|\r|\n/', trim($legacyObjectives)) as $line) {
+        $line = trim($line);
+        if ($line === '') {
+            continue;
+        }
+
+        $html .= '<p class="indent">' . htmlspecialchars($line) . '</p>';
+    }
+
+    return $html;
+}
+
+function renderModuleCloRowsHtml(array $clos): string
+{
+    if (empty($clos)) {
+        return '<tr><td colspan="4" class="text-center">Ch&#432;a c&#7845;u h&#236;nh d&#7919; li&#7879;u CLO</td></tr>';
+    }
+
+    $html = '';
+    foreach ($clos as $clo) {
+        $domainParts = array_filter(
+            array_map('trim', explode(',', s($clo['domain'] ?? ''))),
+            static fn(string $part): bool => $part !== ''
+        );
+        if (empty($domainParts)) {
+            $domainParts = [''];
+        }
+
+        $domainHtml = implode('<br>', array_map(static fn(string $part): string => htmlspecialchars($part), $domainParts));
+
+        $bloomHtmlParts = [];
+        foreach (explode(',', s($clo['bloom_level'] ?? '')) as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+
+            if (preg_match('/^\d+\.\s*(.+)$/u', $part, $matches) === 1) {
+                $part = trim($matches[1]);
+            }
+
+            $bloomHtmlParts[] = htmlspecialchars($part);
+        }
+        if (empty($bloomHtmlParts)) {
+            $bloomHtmlParts = [''];
+        }
+
+        $cloContent = s($clo['content'] ?? '');
+        if ($cloContent === '') {
+            $cloContent = s($clo['description'] ?? '');
+        }
+
+        $html .= '<tr>';
+        $html .= '<td style="vertical-align: top;">' . $domainHtml . '</td>';
+        $html .= '<td class="text-center" style="vertical-align: top;">' . implode('<br>', $bloomHtmlParts) . '</td>';
+        $html .= '<td class="text-center" style="vertical-align: top;">' . htmlspecialchars(s($clo['code'] ?? '')) . '</td>';
+        $html .= '<td style="vertical-align: top;">' . nl2br(htmlspecialchars($cloContent)) . '</td>';
+        $html .= '</tr>';
+    }
+
+    return $html;
+}
+
+function renderModuleAssessmentRowsHtml(array $assessments): string
+{
+    if (empty($assessments)) {
+        return '<tr><td colspan="7" class="text-center">Ch&#432;a c&#243; ph&#432;&#417;ng ph&#225;p &#273;&#225;nh gi&#225; n&#224;o.</td></tr>';
+    }
+
+    $html = '';
+    foreach ($assessments as $assessment) {
+        $ploPiText = (string) ($assessment['plo_pi'] ?? '');
+
+        preg_match_all('/(PLO|PO)\s*[\d\.]+/iu', $ploPiText, $ploMatches);
+        $ploDisplay = !empty($ploMatches[0]) ? implode(', ', array_unique($ploMatches[0])) : '---';
+
+        preg_match_all('/PI\s*[\d\.]+/iu', $ploPiText, $piMatches);
+        $piDisplay = !empty($piMatches[0]) ? implode(', ', array_unique($piMatches[0])) : '---';
+
+        $closDisplay = s($assessment['clos_codes'] ?? '');
+        if ($closDisplay === '') {
+            $closDisplay = s($assessment['clos_text'] ?? '');
+        }
+        if ($closDisplay === '') {
+            $closDisplay = '---';
+        }
+
+        $html .= '<tr>';
+        $html .= '<td class="text-center">' . htmlspecialchars($closDisplay) . '</td>';
+        $html .= '<td class="text-center">' . htmlspecialchars($ploDisplay) . '</td>';
+        $html .= '<td class="text-center">' . htmlspecialchars($piDisplay) . '</td>';
+        $html .= '<td class="text-center">' . htmlspecialchars(s($assessment['contribution'] ?? '')) . '</td>';
+        $html .= '<td>' . htmlspecialchars(s($assessment['form'] ?? '')) . '</td>';
+        $html .= '<td>' . htmlspecialchars(s($assessment['tool'] ?? '')) . '</td>';
+        $html .= '<td class="text-center">' . htmlspecialchars(s($assessment['weight'] ?? '')) . '%</td>';
+        $html .= '</tr>';
+    }
+
+    return $html;
+}
+
+function renderModuleTheoryTopicRowsHtml(array $theoryTopics): string
+{
+    if (empty($theoryTopics)) {
+        return '<tr><td colspan="7" class="text-center">Ch&#432;a thi&#7871;t l&#7853;p b&#224;i gi&#7843;ng l&#253; thuy&#7871;t</td></tr>';
+    }
+
+    $html = '';
+    foreach ($theoryTopics as $topic) {
+        $chapterText = s($topic['chapter'] ?? '');
+        $titleText = s($topic['title'] ?? '');
+        $normalizedChapter = strtolower(transliterateVietnameseToAscii($chapterText));
+
+        $isChapter = strpos($normalizedChapter, 'chuong') === 0;
+        $isIntroLesson = strpos($normalizedChapter, 'bai 0') === 0 || s($topic['type'] ?? '') === 'intro';
+
+        $html .= '<tr>';
+        if ($isChapter || $isIntroLesson) {
+            $style = 'text-align: center; vertical-align: middle;';
+
+            if ($isChapter) {
+                $style .= ' font-weight: bold; background-color: #f2f2f2; text-transform: uppercase;';
+            } else {
+                $style .= ' font-weight: normal; background-color: #ffffff; text-transform: none;';
+            }
+
+            $html .= '<td style="' . $style . '">' . htmlspecialchars($chapterText) . '</td>';
+            $html .= '<td colspan="6" style="' . $style . '">' . htmlspecialchars($titleText) . '</td>';
+        } else {
+            $html .= '<td class="text-center">' . htmlspecialchars($chapterText) . '</td>';
+            $html .= '<td>' . htmlspecialchars($titleText) . '</td>';
+            $html .= '<td>' . htmlspecialchars(s($topic['method'] ?? '')) . '</td>';
+            $html .= '<td class="text-center">' . htmlspecialchars(s($topic['class_hours'] ?? '')) . '</td>';
+            $html .= '<td class="text-center">' . htmlspecialchars(s($topic['self_study_hours'] ?? '')) . '</td>';
+            $html .= '<td class="text-center">' . htmlspecialchars(s($topic['clos_codes'] ?? '')) . '</td>';
+            $html .= '<td>' . htmlspecialchars(s($topic['textbook_info'] ?? '')) . '</td>';
+        }
+        $html .= '</tr>';
+    }
+
+    return $html;
+}
+
+function renderModuleAppendixHtml(PDO $pdo, int $moduleId): string
+{
+    $matrixMapping = [];
+    $contribMap = [];
+    $activeClos = [];
+    $mappedPlos = [];
+    $mappedPis = [];
+
+    $stmtMatrix = $pdo->prepare(
+        "SELECT
+            UPPER(TRIM(c.code)) AS clo_code,
+            UPPER(TRIM(p.code)) AS plo_code,
+            UPPER(TRIM(pi.code)) AS pi_code,
+            cp.contribution
+        FROM clo_plos cp
+        JOIN clos c ON cp.clo_id = c.id
+        JOIN plos p ON cp.plo_id = p.id
+        LEFT JOIN pis pi ON cp.pi_id = pi.id
+        WHERE c.module_id = ?
+          AND cp.contribution IS NOT NULL
+          AND TRIM(cp.contribution) != ''"
+    );
+    $stmtMatrix->execute([$moduleId]);
+    $matrixData = $stmtMatrix->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($matrixData as $row) {
+        $clo = $row['clo_code'];
+        $plo = $row['plo_code'];
+        $pi = $row['pi_code'] ?? '';
+        $contribution = trim((string) ($row['contribution'] ?? ''));
+
+        if (!in_array($clo, $activeClos, true)) {
+            $activeClos[] = $clo;
+        }
+        if (!in_array($plo, $mappedPlos, true)) {
+            $mappedPlos[] = $plo;
+        }
+        if ($pi !== '') {
+            if (!isset($mappedPis[$plo])) {
+                $mappedPis[$plo] = [];
+            }
+            if (!in_array($pi, $mappedPis[$plo], true)) {
+                $mappedPis[$plo][] = $pi;
+            }
+        }
+
+        $matrixMapping[$clo][$plo][$pi] = true;
+
+        if (!isset($contribMap[$clo][$plo][$pi])) {
+            $contribMap[$clo][$plo][$pi] = $contribution;
+            continue;
+        }
+
+        $existing = explode(', ', $contribMap[$clo][$plo][$pi]);
+        $newValues = explode(', ', $contribution);
+        $contribMap[$clo][$plo][$pi] = implode(', ', array_unique(array_merge($existing, $newValues)));
+    }
+
+    foreach ($mappedPlos as $plo) {
+        if (empty($mappedPis[$plo])) {
+            $mappedPis[$plo] = [''];
+        }
+    }
+
+    $stmtAssessments = $pdo->prepare("SELECT clos_text, plo_pi, contribution FROM assessments WHERE module_id = ?");
+    $stmtAssessments->execute([$moduleId]);
+    $assessmentsData = $stmtAssessments->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($assessmentsData as $row) {
+        if (empty($row['clos_text']) || empty($row['plo_pi'])) {
+            continue;
+        }
+
+        preg_match_all('/CLO\s*\d+/iu', (string) $row['clos_text'], $cloMatches);
+        $closInAssessment = array_unique(
+            array_map(
+                'strtoupper',
+                array_map('trim', str_replace(' ', '', $cloMatches[0] ?? []))
+            )
+        );
+
+        $parts = explode('/', (string) $row['plo_pi']);
+        $plo = trim((string) ($parts[0] ?? ''));
+        $contributionValues = array_filter(array_map('trim', explode(',', (string) ($row['contribution'] ?? ''))));
+
+        foreach ($closInAssessment as $clo) {
+            if (!isset($contribMap[$clo])) {
+                $contribMap[$clo] = [];
+            }
+            if (!isset($contribMap[$clo][$plo])) {
+                $contribMap[$clo][$plo] = [];
+            }
+            foreach ($contributionValues as $value) {
+                if (!in_array($value, $contribMap[$clo][$plo], true)) {
+                    $contribMap[$clo][$plo][] = $value;
+                }
+            }
+        }
+    }
+
+    natsort($activeClos);
+    natsort($mappedPlos);
+    foreach ($mappedPis as &$piRows) {
+        natsort($piRows);
+    }
+    unset($piRows);
+
+    $html = '<div class="keep-together"><h1>7. PH&#7908; L&#7908;C</h1>';
+    if (empty($activeClos) || empty($mappedPlos)) {
+        $html .= '<p class="text-center italic">Ch&#432;a c&#243; th&#244;ng tin &#225;nh x&#7841; CLO - PLO/PI.</p></div>';
+        return $html;
+    }
+
+    $totalColumns = 0;
+    $moduleTotals = [];
+    foreach ($mappedPlos as $plo) {
+        $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+        $totalColumns += count($piList);
+        foreach ($piList as $pi) {
+            $moduleTotals[$plo][$pi] = [];
+        }
+    }
+
+    $html .= '<table style="font-size: 10pt; width: 100%; border-collapse: collapse;">';
+    $html .= '<thead>';
+    $html .= '<tr>';
+    $html .= '<th rowspan="3" style="width: 12%; background-color: #f8f9fa; vertical-align: middle;">CLOs</th>';
+    $html .= '<th colspan="' . $totalColumns . '" style="background-color: #f8f9fa;">PO v&#224; gi&#225; tr&#7883; PI</th>';
+    $html .= '</tr><tr>';
+
+    foreach ($mappedPlos as $plo) {
+        $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+        $html .= '<th colspan="' . count($piList) . '" style="background-color: #eef2f7;">' . htmlspecialchars($plo) . '</th>';
+    }
+
+    $html .= '</tr><tr>';
+    foreach ($mappedPlos as $plo) {
+        $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+        foreach ($piList as $pi) {
+            $html .= '<th style="background-color: #fff;">' . htmlspecialchars($pi) . '</th>';
+        }
+    }
+    $html .= '</tr></thead><tbody>';
+
+    foreach ($activeClos as $clo) {
+        $html .= '<tr>';
+        $html .= '<td class="text-center" style="font-weight: bold; background-color: #f8f9fa;">' . htmlspecialchars($clo) . '</td>';
+
+        foreach ($mappedPlos as $plo) {
+            $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+            foreach ($piList as $pi) {
+                $cellValue = '';
+                if (isset($matrixMapping[$clo][$plo][$pi])) {
+                    $cellValue = $contribMap[$clo][$plo][$pi] ?? '';
+
+                    if ($cellValue !== '') {
+                        $parts = array_map('trim', explode(',', $cellValue));
+                        foreach ($parts as $part) {
+                            if ($part !== '' && !in_array($part, $moduleTotals[$plo][$pi], true)) {
+                                $moduleTotals[$plo][$pi][] = $part;
+                            }
+                        }
+                    }
+                }
+
+                $html .= '<td class="text-center">' . ($cellValue !== '' ? htmlspecialchars($cellValue) : '') . '</td>';
+            }
+        }
+
+        $html .= '</tr>';
+    }
+
+    $html .= '<tr>';
+    $html .= '<td class="text-center" style="font-weight: bold; background-color: #e2f0d9;">H&#7885;c ph&#7847;n</td>';
+
+    foreach ($mappedPlos as $plo) {
+        $piList = count($mappedPis[$plo]) > 0 && $mappedPis[$plo][0] !== '' ? $mappedPis[$plo] : [''];
+        foreach ($piList as $pi) {
+            $totals = $moduleTotals[$plo][$pi];
+            $order = ['I' => 1, 'R' => 2, 'M' => 3, 'A' => 4];
+            usort(
+                $totals,
+                static function (string $left, string $right) use ($order): int {
+                    $weightLeft = $order[$left] ?? 99;
+                    $weightRight = $order[$right] ?? 99;
+                    return $weightLeft <=> $weightRight;
+                }
+            );
+
+            $html .= '<td class="text-center" style="font-weight: bold; background-color: #e2f0d9;">' . htmlspecialchars(implode(', ', $totals)) . '</td>';
+        }
+    }
+
+    $html .= '</tr></tbody></table></div>';
+
+    return $html;
 }
 
 function fetchModuleDetailsForMajor(PDO $pdo, int $moduleId): array {
@@ -196,7 +567,7 @@ $traverse = function($blockIds, $currentDepth = 1, $prefix = '') use (&$traverse
 };
 $traverse($tree, 1, '');
 
-if (!empty($unassigned['Bắt buộc']) || !empty($unassigned['Tự chọn'])) {
+if (!empty($unassigned['Bắt buộc']) || !empty($unassigned['Điều kiện']) || !empty($unassigned['Tự chọn'])) {
     $renderPlan[] = ['kind' => 'title', 'text' => 'Học phần chưa phân phối khối kiến thức', 'level' => 1];
     if (!empty($unassigned['Bắt buộc'])) {
         $renderPlan[] = ['kind' => 'subtitle', 'text' => '*Nhóm học phần bắt buộc', 'level' => 2];
@@ -285,12 +656,14 @@ ob_start();
     
     /* Cấu trúc bảng biểu và phân cấp text chi tiết học phần */
     .main-title { text-align: center; font-size: 14pt; font-weight: bold; margin: 25px 0; line-height: 1.3; }
-    h1 { font-size: 12pt; font-weight: bold; margin-top: 25px; margin-bottom: 10px; text-transform: uppercase; }
-    h2 { font-size: 12pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; }
-    p { margin: 0 0 8px 0; text-align: justify; }
+    .keep-together { page-break-inside: avoid; }
+    h1 { font-size: 12pt; font-weight: bold; margin-top: 25px; margin-bottom: 10px; text-transform: uppercase; page-break-inside: avoid; }
+    h2 { font-size: 12pt; font-weight: bold; margin-top: 15px; margin-bottom: 8px; text-transform: none; page-break-inside: avoid; }
+    p { margin: 0 0 8px 0; text-align: justify; font-size: 12pt; }
     .indent { text-indent: 35px; }
     
-    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; page-break-inside: avoid; }
+    tr { page-break-inside: avoid; }
     th { font-size: 11pt; font-weight: bold; border: 1px solid #000000; padding: 6px 4px; text-align: center; background-color: #f2f2f2; }
     td { font-size: 11pt; border: 1px solid #000000; padding: 6px 5px; vertical-align: top; }
     table.info-table td { border: none; padding: 4px 0; font-size: 12pt; }
@@ -483,15 +856,12 @@ ob_start();
             <p class="indent"><?= htmlspecialchars(s($module['description'])) ?></p>
 
             <h1>3. MỤC TIÊU VÀ CHUẨN ĐẦU RA HỌC PHẦN</h1>
-            <h2>3.1. Mục tiêu</h2>
             <?php 
-            foreach (preg_split('/\r\n|\r|\n/', trim(s($module['objectives']))) as $line) {
-                if (trim($line) === '') continue;
-                echo '<p class="indent">' . htmlspecialchars(trim($line)) . '</p>';
-            }
+            echo renderModuleObjectivesHtml($module);
             ?>
             
-            <h2>3.2. Chuẩn đầu ra học phần (Bloom)</h2>
+            <div class="keep-together">
+            <h2>3.1. Chuẩn đầu ra học phần (Bloom)</h2>
             <table>
                 <thead>
                     <tr>
@@ -502,20 +872,10 @@ ob_start();
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (!empty($clos)): ?>
-                        <?php foreach ($clos as $c): ?>
-                            <tr>
-                                <td><?= htmlspecialchars(s($c['domain'])) ?></td>
-                                <td><?= htmlspecialchars(s($c['bloom_level'])) ?></td>
-                                <td class="text-center"><?= htmlspecialchars(s($c['code'])) ?></td>
-                                <td><?= htmlspecialchars(s($c['description'])) ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr><td colspan="4" class="text-center">Chưa cấu hình dữ liệu CLO</td></tr>
-                    <?php endif; ?>
+                    <?= renderModuleCloRowsHtml($clos) ?>
                 </tbody>
             </table>
+            </div>
 
             <h1>4. PHƯƠNG PHÁP KIỂM TRA, LƯỢNG GIÁ HỌC PHẦN</h1>
             <h2>4.1. Thang điểm lượng giá</h2>
@@ -531,27 +891,17 @@ ob_start();
             <table>
                 <thead>
                     <tr>
-                        <th width="18%">CLOs</th>
-                        <th width="15%">PLO/PI liên quan</th>
-                        <th width="27%">Hình thức đánh giá</th>
-                        <th width="28%">Công cụ đánh giá</th>
-                        <th width="12%">Trọng số</th>
+                        <th style="width: 12%; text-align: center;">CLOs</th>
+                        <th style="width: 10%; text-align: center;">PLO</th>
+                        <th style="width: 12%; text-align: center;">PI liên quan</th>
+                        <th style="width: 10%; text-align: center;">Mức độ đóng góp</th>
+                        <th style="width: 18%;">Hình thức đánh giá</th>
+                        <th style="width: 29%;">Công cụ đánh giá</th>
+                        <th style="width: 9%; text-align: center;">Trọng số</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (!empty($assessments)): ?>
-                        <?php foreach ($assessments as $a): ?>
-                            <tr>
-                                <td class="text-center"><?= htmlspecialchars(s($a['clos_codes'] ?: '---')) ?></td>
-                                <td class="text-center"><?= htmlspecialchars(s($a['plo_pi'])) ?></td>
-                                <td><?= htmlspecialchars(s($a['form'])) ?></td>
-                                <td><?= htmlspecialchars(s($a['tool'])) ?></td>
-                                <td class="text-center"><?= htmlspecialchars(s($a['weight'])) ?>%</td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr><td colspan="5" class="text-center">Chưa có phương pháp đánh giá nào.</td></tr>
-                    <?php endif; ?>
+                    <?= renderModuleAssessmentRowsHtml($assessments) ?>
                 </tbody>
             </table>
 
@@ -600,21 +950,7 @@ ob_start();
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (!empty($theoryTopics)): ?>
-                        <?php foreach ($theoryTopics as $t): ?>
-                            <tr>
-                                <td class="text-center"><?= htmlspecialchars(s($t['chapter'])) ?></td>
-                                <td><?= htmlspecialchars(s($t['title'])) ?></td>
-                                <td><?= htmlspecialchars(s($t['method'])) ?></td>
-                                <td class="text-center"><?= htmlspecialchars(s($t['class_hours'])) ?></td>
-                                <td class="text-center"><?= htmlspecialchars(s($t['self_study_hours'])) ?></td>
-                                <td class="text-center"><?= htmlspecialchars(s($t['clos_codes'])) ?></td>
-                                <td><?= htmlspecialchars(s($t['textbook_info'])) ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr><td colspan="7" class="text-center">Chưa thiết lập bài giảng lý thuyết</td></tr>
-                    <?php endif; ?>
+                    <?= renderModuleTheoryTopicRowsHtml($theoryTopics) ?>
                 </tbody>
             </table>
 
@@ -747,6 +1083,8 @@ ob_start();
                     <?php endif; ?>
                 </tbody>
             </table>
+
+            <?= renderModuleAppendixHtml($pdo, (int) $module['id']) ?>
 
             <div class="page-break"></div>
             <?php
